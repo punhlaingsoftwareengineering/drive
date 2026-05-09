@@ -14,30 +14,45 @@ export default defineConfig({
 	],
 	test: {
 		expect: { requireAssertions: true },
-		projects: [
-			{
-				extends: './vite.config.ts',
-				test: {
-					name: 'client',
-					browser: {
-						enabled: true,
-						provider: playwright(),
-						instances: [{ browser: 'chromium', headless: true }]
-					},
-					include: ['src/**/*.svelte.{test,spec}.{js,ts}'],
-					exclude: ['src/lib/server/**']
+		projects: (() => {
+			// Default to server-only tests so `pnpm test:unit -- --run` works on machines
+			// without Playwright browsers installed. Opt-in with: VITEST_BROWSER=1 pnpm test:unit
+			const enableBrowser = process.env.VITEST_BROWSER === '1';
+			return [
+				...(enableBrowser
+					? [
+							{
+								extends: './vite.config.ts',
+								test: {
+									name: 'client',
+									browser: {
+										enabled: true,
+										// Chromium frequently fails to boot on Linux in sandboxed/CI-like
+										// environments without these flags; failure manifests as
+										// "Failed to connect to the browser session ... within the timeout".
+										provider: playwright({
+											launchOptions: {
+												args: ['--no-sandbox', '--disable-dev-shm-usage']
+											}
+										}),
+										instances: [{ browser: 'chromium', headless: true }]
+									},
+									include: ['src/**/*.svelte.{test,spec}.{js,ts}'],
+									exclude: ['src/lib/server/**']
+								}
+							}
+						]
+					: []),
+				{
+					extends: './vite.config.ts',
+					test: {
+						name: 'server',
+						environment: 'node',
+						include: ['src/**/*.{test,spec}.{js,ts}'],
+						exclude: ['src/**/*.svelte.{test,spec}.{js,ts}']
+					}
 				}
-			},
-
-			{
-				extends: './vite.config.ts',
-				test: {
-					name: 'server',
-					environment: 'node',
-					include: ['src/**/*.{test,spec}.{js,ts}'],
-					exclude: ['src/**/*.svelte.{test,spec}.{js,ts}']
-				}
-			}
-		]
+			];
+		})()
 	}
 });
