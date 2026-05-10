@@ -20,17 +20,15 @@
 
 			<div class="mt-10 flex flex-wrap gap-3 sm:gap-5">
 				<a class="d-btn d-btn-primary" href={resolve('/(private)/home')}>Get Started</a>
+				
 				<a
 					class="d-btn d-btn-outline"
-					href={localizeHref('/onboarding/docs')}
+					href="https://github.com/zarnihlawn/znl-drive"
 					target="_blank"
 					rel="noopener noreferrer"
 				>
-					Documentation
+					Host Your Own
 				</a>
-				<a class="d-btn d-btn-outline" href="https://github.com/zarnihlawn/znl-drive"
-					>Host Your Own</a
-				>
 			</div>
 		</div>
 		<div>
@@ -48,8 +46,9 @@
 			<div class="d-card-body items-center text-center">
 				<h2 class="d-card-title">Local Drive</h2>
 				<p>
-					A card component has a figure, a body part, and inside body there are title and actions
-					parts
+					Keep files on your own machine or server. Pick local storage in the app and uploads land on
+					disk under your control—ideal for development, air‑gapped setups, or when you want zero
+					vendor lock‑in.
 				</p>
 			</div>
 		</div>
@@ -60,8 +59,8 @@
 			<div class="d-card-body items-center text-center">
 				<h2 class="d-card-title">Cloud Storage</h2>
 				<p>
-					A card component has a figure, a body part, and inside body there are title and actions
-					parts
+					Plug in S3‑compatible object storage (for example Tigris) so blobs live in the cloud while
+					metadata stays in your database. Same UI and APIs—switch providers per environment or team.
 				</p>
 			</div>
 		</div>
@@ -72,8 +71,9 @@
 			<div class="d-card-body items-center text-center">
 				<h2 class="d-card-title">API</h2>
 				<p>
-					A card component has a figure, a body part, and inside body there are title and actions
-					parts
+					Automate uploads, shares, and downloads with REST endpoints. Use your browser session or a
+					developer API key—documented under Docs → Developer so scripts and backends integrate
+					cleanly.
 				</p>
 			</div>
 		</div>
