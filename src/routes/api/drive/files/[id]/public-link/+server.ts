@@ -1,6 +1,7 @@
 import { getMainFileIfAccessible, requireMainFileForMutation } from '$lib/server/drive-file-access';
 import { requireApiSession } from '$lib/server/require-api-session';
 import { appAbsoluteUrlFromRequest } from '$lib/server/app-absolute-url';
+import { fileLooksLikeImage } from '$lib/tool/image-kind';
 import { db } from '$lib/server/db';
 import {
 	MainFilePublicLinkSchema,
@@ -29,7 +30,8 @@ export const GET: RequestHandler = async ({ request, params }) => {
 		.select({
 			token: MainFilePublicLinkSchema.token,
 			mimeType: MainFileSchema.mimeType,
-			itemType: MainFileSchema.itemType
+			itemType: MainFileSchema.itemType,
+			name: MainFileSchema.name
 		})
 		.from(MainFilePublicLinkSchema)
 		.innerJoin(MainFileSchema, eq(MainFileSchema.id, MainFilePublicLinkSchema.fileId))
@@ -48,7 +50,7 @@ export const GET: RequestHandler = async ({ request, params }) => {
 
 	const shareUrl = appAbsoluteUrlFromRequest(request.url, `/${row.token}`);
 	const imageDirectUrl =
-		row.itemType === 'file' && row.mimeType.startsWith('image/')
+		row.itemType === 'file' && fileLooksLikeImage(row.mimeType, row.name)
 			? appAbsoluteUrlFromRequest(request.url, `/api/public/files/${row.token}`)
 			: undefined;
 	const copyUrl = imageDirectUrl ?? shareUrl;
@@ -94,7 +96,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
 
 	const shareUrl = appAbsoluteUrlFromRequest(request.url, `/${token}`);
 	const imageDirectUrl =
-		item.itemType === 'file' && item.mimeType.startsWith('image/')
+		item.itemType === 'file' && fileLooksLikeImage(item.mimeType, item.name)
 			? appAbsoluteUrlFromRequest(request.url, `/api/public/files/${token}`)
 			: null;
 	const copyUrl = imageDirectUrl ?? shareUrl;

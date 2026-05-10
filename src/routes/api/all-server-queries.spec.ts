@@ -97,7 +97,8 @@ describe('all important server queries (API +server.ts)', () => {
 				'./drive/upload/chunk/+server',
 				'./public/files/[token]/+server',
 				'./public/share/[token]/+server',
-				'./teams/+server'
+				'./teams/+server',
+				'./teams/[teamId]/invites/+server'
 			];
 
 			const modules = [];

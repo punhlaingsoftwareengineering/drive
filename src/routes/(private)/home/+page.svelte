@@ -11,6 +11,7 @@
 		shareDriveFile,
 		type PatchDriveFileBody
 	} from '$lib/client/drive-file';
+	import { copyTextToClipboard } from '$lib/client/copy-text';
 	import { uploadFilesWithProgress } from '$lib/client/upload-drive';
 	import {
 		FILE_LABEL_COLORS,
@@ -127,22 +128,6 @@
 		fileActionsMenuPosition = null;
 	}
 
-	async function copyTextToClipboard(text: string): Promise<void> {
-		if (navigator.clipboard?.writeText) {
-			await navigator.clipboard.writeText(text);
-			return;
-		}
-		const ta = document.createElement('textarea');
-		ta.value = text;
-		ta.style.position = 'fixed';
-		ta.style.left = '-9999px';
-		document.body.appendChild(ta);
-		ta.focus();
-		ta.select();
-		document.execCommand('copy');
-		document.body.removeChild(ta);
-	}
-
 	async function refreshPublicLinkMeta(itemId: string) {
 		publicLinkMeta = { ...publicLinkMeta, [itemId]: { loading: true } };
 		try {
@@ -221,8 +206,15 @@
 	}
 
 	async function copyPublicLinkField(url: string, toastMsg: string) {
-		await copyTextToClipboard(url);
-		toastService.addToast(toastMsg, StatusColorEnum.SUCCESS);
+		try {
+			await copyTextToClipboard(url);
+			toastService.addToast(toastMsg, StatusColorEnum.SUCCESS);
+		} catch {
+			toastService.addToast(
+				'Could not copy automatically — select the text in the field and copy manually',
+				StatusColorEnum.WARNING
+			);
+		}
 	}
 
 	async function copyDialogSharePageUrl() {

@@ -1,5 +1,8 @@
 <script lang="ts">
+	import { browser } from '$app/environment';
+	import { afterNavigate } from '$app/navigation';
 	import { page } from '$app/state';
+	import { enhanceDocsMermaid } from '$lib/docs/mermaid-docs';
 	import {
 		DOCS_ROOT,
 		docsCanonicalPath,
@@ -9,14 +12,23 @@
 	} from '$lib/docs/nav';
 	import { localizeHref } from '$lib/paraglide/runtime';
 	import { LucideBookOpen, LucideMenu } from '@lucide/svelte';
+	import { tick } from 'svelte';
 
 	let { children } = $props();
+
+	let docsContentEl = $state<HTMLElement | null>(null);
 
 	const drawerId = 'docs-drawer-nav';
 
 	const canonicalPath = $derived(docsCanonicalPath(page.url.pathname));
 	const flatNav = $derived(flattenDocsNav());
 	const breadcrumbChain = $derived(findDocsBreadcrumbChain(canonicalPath) ?? []);
+
+	afterNavigate(async () => {
+		if (!browser || !docsContentEl) return;
+		await tick();
+		await enhanceDocsMermaid(docsContentEl);
+	});
 </script>
 
 <svelte:head>
@@ -78,6 +90,8 @@
 			</div>
 
 			<div
+				bind:this={docsContentEl}
+				id="docs-prose-root"
 				class="[&_a]:link-primary prose prose-sm max-w-none flex-1 px-4 py-8 lg:px-10 dark:prose-invert"
 			>
 				{@render children()}

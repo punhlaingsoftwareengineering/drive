@@ -3,6 +3,7 @@
 	import { resolve } from '$app/paths';
 	import { resolveHref } from '$lib/url/resolve-href';
 	import { formatBytes } from '$lib/tool/format-bytes';
+	import { fileLooksLikeImage } from '$lib/tool/image-kind';
 	import type { PageData } from './$types';
 
 	let { data }: { data: PageData } = $props();
@@ -14,7 +15,11 @@
 	let directFileAbsolute = $state('');
 
 	const isImage = $derived(
-		Boolean(share?.item.itemType === 'file' && share?.item.mimeType?.startsWith('image/'))
+		Boolean(
+			share &&
+				share.item.itemType === 'file' &&
+				fileLooksLikeImage(share.item.mimeType, share.item.name)
+		)
 	);
 	const rawUrl = $derived(share ? resolveHref(`/api/public/files/${share.token}`) : '');
 

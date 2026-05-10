@@ -1,6 +1,7 @@
 import { buildFolderZipBuffer } from '$lib/server/drive-folder-zip';
 import { readStoredBlob } from '$lib/server/drive-load';
 import { openFileBuffer } from '$lib/server/drive-seal';
+import { fileLooksLikeImage, guessImageMimeFromFileName } from '$lib/tool/image-kind';
 import { db } from '$lib/server/db';
 import {
 	MainFilePublicLinkSchema,
@@ -95,10 +96,15 @@ export const GET: RequestHandler = async ({ params }) => {
 	}
 
 	// Inline for images so the raw URL works in <img src="...">. Otherwise serve as attachment.
-	const inline = row.mimeType?.startsWith('image/');
+	const inline = fileLooksLikeImage(row.mimeType, row.name);
+	let contentType = row.mimeType || 'application/octet-stream';
+	if (inline && !contentType.startsWith('image/')) {
+		const guessed = guessImageMimeFromFileName(row.name);
+		if (guessed) contentType = guessed;
+	}
 	return new Response(new Uint8Array(body), {
 		headers: {
-			'Content-Type': row.mimeType || 'application/octet-stream',
+			'Content-Type': contentType,
 			'Content-Disposition': inline
 				? contentDispositionInline(row.name)
 				: contentDispositionAttachment(row.name),

@@ -69,6 +69,7 @@
 		"better-auth": "~1.4.21",
 		"d3": "^7.9.0",
 		"drizzle-orm": "^0.45.1",
+		"mermaid": "^11.6.0",
 		"jzip": "^1.0.0",
 		"multer": "^2.1.1",
 		"nodemailer": "^8.0.4",

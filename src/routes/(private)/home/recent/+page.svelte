@@ -5,6 +5,7 @@
 	import { fetchWithSession } from '$lib/client/fetch-session';
 	import { resolveHref } from '$lib/url/resolve-href';
 	import { page } from '$app/state';
+	import { copyTextToClipboard } from '$lib/client/copy-text';
 	import {
 		downloadDriveFileAsBlob,
 		patchDriveFile,
@@ -138,22 +139,6 @@
 		fileActionsMenuPosition = null;
 	}
 
-	async function copyTextToClipboard(text: string): Promise<void> {
-		if (navigator.clipboard?.writeText) {
-			await navigator.clipboard.writeText(text);
-			return;
-		}
-		const ta = document.createElement('textarea');
-		ta.value = text;
-		ta.style.position = 'fixed';
-		ta.style.left = '-9999px';
-		document.body.appendChild(ta);
-		ta.focus();
-		ta.select();
-		document.execCommand('copy');
-		document.body.removeChild(ta);
-	}
-
 	async function refreshPublicLinkMeta(itemId: string) {
 		publicLinkMeta = { ...publicLinkMeta, [itemId]: { loading: true } };
 		try {
@@ -228,8 +213,15 @@
 	}
 
 	async function copyPublicLinkField(url: string, toastMsg: string) {
-		await copyTextToClipboard(url);
-		toastService.addToast(toastMsg, StatusColorEnum.SUCCESS);
+		try {
+			await copyTextToClipboard(url);
+			toastService.addToast(toastMsg, StatusColorEnum.SUCCESS);
+		} catch {
+			toastService.addToast(
+				'Could not copy automatically — select the text in the field and copy manually',
+				StatusColorEnum.WARNING
+			);
+		}
 	}
 
 	async function copyDialogSharePageUrl() {
@@ -368,6 +360,18 @@
 			loading = false;
 		}
 	}
+
+	const partitionedRecent = $derived.by(() => {
+		const pinned: DriveItem[] = [];
+		const starred: DriveItem[] = [];
+		const other: DriveItem[] = [];
+		for (const r of rows) {
+			if (r.pinned) pinned.push(r);
+			else if (r.starred) starred.push(r);
+			else other.push(r);
+		}
+		return { pinned, starred, other };
+	});
 
 	const fileActionsMenuItem = $derived(
 		openFileActionsId
@@ -545,6 +549,113 @@
 						</tr>
 					</thead>
 					<tbody>
+						{#snippet recentRow(item: DriveItem)}
+							<tr
+								class="border-l-4 transition-colors hover:bg-info/50 {fileLabelBorderClass(
+									item.color
+								)}"
+							>
+								<td>
+									{#if item.itemType === 'folder'}
+										<button
+											type="button"
+											class="inline-flex max-w-full min-w-0 items-center gap-2 text-left font-medium hover:underline"
+											onclick={() => enterFolder(item)}
+										>
+											<LucideFolder
+												class="size-5 shrink-0 {fileLabelIconClass(item.color)}"
+												aria-hidden="true"
+											/>
+											<span class="truncate">{item.name}</span>
+										</button>
+									{:else}
+										<span class="inline-flex max-w-full min-w-0 items-center gap-2">
+											<LucideFile
+												class="size-5 shrink-0 {fileLabelIconClass(item.color ?? 'base')}"
+												aria-hidden="true"
+											/>
+											<span class="truncate font-medium">{item.name}</span>
+										</span>
+									{/if}
+								</td>
+								<td class="max-w-[9rem] truncate text-sm" title={whereLabel(item)}>
+									{whereLabel(item)}
+								</td>
+								<td class="text-base-content/80 tabular-nums">{formatBytes(item.sizeBytes)}</td>
+								<td class="text-base-content/80">{item.updatedAt}</td>
+								<td class="text-base-content/80">{item.recencyAt}</td>
+								<td class="text-sm">{storageProviderLabel(item.storageProvider)}</td>
+								<td class="max-w-[8rem] truncate text-sm text-base-content/80" title={item.ownerName}>
+									{item.ownerName}
+								</td>
+								<td class="text-center">
+									{#if canEditItem(item)}
+										<button
+											type="button"
+											class="d-btn d-btn-square d-btn-ghost d-btn-sm"
+											aria-pressed={item.pinned}
+											aria-label={item.pinned ? 'Unpin' : 'Pin'}
+											disabled={busyId === item.id}
+											onclick={() => void runPatch(item.id, { isPinned: !item.pinned })}
+										>
+											<LucidePin class="size-4 {item.pinned ? 'text-primary' : 'text-base-content/30'}" />
+										</button>
+									{:else}
+										<span class="text-base-content/30">—</span>
+									{/if}
+								</td>
+								<td class="text-center">
+									{#if canEditItem(item)}
+										<button
+											type="button"
+											class="d-btn d-btn-square d-btn-ghost d-btn-sm"
+											aria-pressed={item.starred}
+											aria-label={item.starred ? 'Unstar' : 'Star'}
+											disabled={busyId === item.id}
+											onclick={() => void runPatch(item.id, { isStarred: !item.starred })}
+										>
+											<LucideStar
+												class="size-4 {item.starred
+													? 'fill-warning text-warning'
+													: 'text-base-content/30'}"
+											/>
+										</button>
+									{:else}
+										<span class="text-base-content/30">—</span>
+									{/if}
+								</td>
+								<td class="text-center">
+									{#if item.source === 'shared'}
+										<button
+											type="button"
+											class="d-btn m-1 d-btn-square d-btn-ghost d-btn-sm"
+											aria-label="Download"
+											disabled={busyId === item.id}
+											onclick={() => void onDownloadShared(item)}
+										>
+											<LucideDownload class="size-4" />
+										</button>
+									{:else}
+										<button
+											type="button"
+											id={`recent-file-actions-btn-${item.id}`}
+											class="d-btn m-1 d-btn-square d-btn-ghost d-btn-sm"
+											aria-label="File actions"
+											aria-haspopup="menu"
+											aria-expanded={openFileActionsId === item.id}
+											disabled={busyId === item.id}
+											onclick={(e) =>
+												void toggleFileActionsMenu(
+													item.id,
+													e.currentTarget as HTMLButtonElement
+												)}
+										>
+											<LucideEllipsisVertical class="size-4" />
+										</button>
+									{/if}
+								</td>
+							</tr>
+						{/snippet}
 						<tr class="bg-base-200/60 hover:bg-base-200/60">
 							<td colspan="10" class="py-2 text-xs font-semibold tracking-wide text-base-content/80">
 								Recent — {storageProviderLabel(driveStorage.current)}
@@ -557,113 +668,53 @@
 								</td>
 							</tr>
 						{:else}
-							{#each rows as item (item.id)}
-								<tr
-									class="border-l-4 transition-colors hover:bg-info/50 {fileLabelBorderClass(
-										item.color
-									)}"
-								>
-									<td>
-										{#if item.itemType === 'folder'}
-											<button
-												type="button"
-												class="inline-flex max-w-full min-w-0 items-center gap-2 text-left font-medium hover:underline"
-												onclick={() => enterFolder(item)}
-											>
-												<LucideFolder
-													class="size-5 shrink-0 {fileLabelIconClass(item.color)}"
-													aria-hidden="true"
-												/>
-												<span class="truncate">{item.name}</span>
-											</button>
-										{:else}
-											<span class="inline-flex max-w-full min-w-0 items-center gap-2">
-												<LucideFile
-													class="size-5 shrink-0 {fileLabelIconClass(item.color ?? 'base')}"
-													aria-hidden="true"
-												/>
-												<span class="truncate font-medium">{item.name}</span>
-											</span>
-										{/if}
-									</td>
-									<td class="max-w-[9rem] truncate text-sm" title={whereLabel(item)}>
-										{whereLabel(item)}
-									</td>
-									<td class="text-base-content/80 tabular-nums">{formatBytes(item.sizeBytes)}</td>
-									<td class="text-base-content/80">{item.updatedAt}</td>
-									<td class="text-base-content/80">{item.recencyAt}</td>
-									<td class="text-sm">{storageProviderLabel(item.storageProvider)}</td>
-									<td class="max-w-[8rem] truncate text-sm text-base-content/80" title={item.ownerName}>
-										{item.ownerName}
-									</td>
-									<td class="text-center">
-										{#if canEditItem(item)}
-											<button
-												type="button"
-												class="d-btn d-btn-square d-btn-ghost d-btn-sm"
-												aria-pressed={item.pinned}
-												aria-label={item.pinned ? 'Unpin' : 'Pin'}
-												disabled={busyId === item.id}
-												onclick={() => void runPatch(item.id, { isPinned: !item.pinned })}
-											>
-												<LucidePin class="size-4 {item.pinned ? 'text-primary' : 'text-base-content/30'}" />
-											</button>
-										{:else}
-											<span class="text-base-content/30">—</span>
-										{/if}
-									</td>
-									<td class="text-center">
-										{#if canEditItem(item)}
-											<button
-												type="button"
-												class="d-btn d-btn-square d-btn-ghost d-btn-sm"
-												aria-pressed={item.starred}
-												aria-label={item.starred ? 'Unstar' : 'Star'}
-												disabled={busyId === item.id}
-												onclick={() => void runPatch(item.id, { isStarred: !item.starred })}
-											>
-												<LucideStar
-													class="size-4 {item.starred
-														? 'fill-warning text-warning'
-														: 'text-base-content/30'}"
-												/>
-											</button>
-										{:else}
-											<span class="text-base-content/30">—</span>
-										{/if}
-									</td>
-									<td class="text-center">
-										{#if item.source === 'shared'}
-											<button
-												type="button"
-												class="d-btn m-1 d-btn-square d-btn-ghost d-btn-sm"
-												aria-label="Download"
-												disabled={busyId === item.id}
-												onclick={() => void onDownloadShared(item)}
-											>
-												<LucideDownload class="size-4" />
-											</button>
-										{:else}
-											<button
-												type="button"
-												id={`recent-file-actions-btn-${item.id}`}
-												class="d-btn m-1 d-btn-square d-btn-ghost d-btn-sm"
-												aria-label="File actions"
-												aria-haspopup="menu"
-												aria-expanded={openFileActionsId === item.id}
-												disabled={busyId === item.id}
-												onclick={(e) =>
-													void toggleFileActionsMenu(
-														item.id,
-														e.currentTarget as HTMLButtonElement
-													)}
-											>
-												<LucideEllipsisVertical class="size-4" />
-											</button>
-										{/if}
+							{#if partitionedRecent.pinned.length > 0}
+								<tr class="bg-base-200/60 hover:bg-base-200/60">
+									<td
+										colspan="10"
+										class="py-2 text-xs font-semibold tracking-wide text-base-content/80 uppercase"
+									>
+										<span class="inline-flex items-center gap-2">
+											<LucidePin class="size-3.5" aria-hidden="true" />
+											Pinned
+										</span>
 									</td>
 								</tr>
-							{/each}
+								{#each partitionedRecent.pinned as item (item.id)}
+									{@render recentRow(item)}
+								{/each}
+							{/if}
+							{#if partitionedRecent.starred.length > 0}
+								<tr class="bg-base-200/60 hover:bg-base-200/60">
+									<td
+										colspan="10"
+										class="py-2 text-xs font-semibold tracking-wide text-base-content/80 uppercase"
+									>
+										<span class="inline-flex items-center gap-2">
+											<LucideStar class="size-3.5" aria-hidden="true" />
+											Starred
+										</span>
+									</td>
+								</tr>
+								{#each partitionedRecent.starred as item (item.id)}
+									{@render recentRow(item)}
+								{/each}
+							{/if}
+							{#if partitionedRecent.other.length > 0}
+								{#if partitionedRecent.pinned.length > 0 || partitionedRecent.starred.length > 0}
+									<tr class="bg-base-200/60 hover:bg-base-200/60">
+										<td
+											colspan="10"
+											class="py-2 text-xs font-semibold tracking-wide text-base-content/80 uppercase"
+										>
+											More
+										</td>
+									</tr>
+								{/if}
+								{#each partitionedRecent.other as item (item.id)}
+									{@render recentRow(item)}
+								{/each}
+							{/if}
 						{/if}
 					</tbody>
 				</table>

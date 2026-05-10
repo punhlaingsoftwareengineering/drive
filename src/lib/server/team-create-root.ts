@@ -15,7 +15,7 @@ import { TigrisUtil } from '$lib/service/tigris.service.svelte';
 import type { StorageProviderId } from '$lib/model/storage-provider';
 import { mkdir } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 
 function safeTeamName(name: string): string {
 	const t = name.trim().replace(/[/\\]/g, '_');
@@ -24,6 +24,86 @@ function safeTeamName(name: string): string {
 
 function normalizeEmail(e: string): string {
 	return e.trim().toLowerCase();
+}
+
+/**
+ * Add members (by existing account) or pending email invites. Skips duplicates; omits the actor’s own email.
+ */
+async function applyTeamInvites(
+	teamId: string,
+	actorUserId: string,
+	actorEmail: string | null | undefined,
+	inviteEmails: string[]
+): Promise<{ addedMembers: number; pendingInvites: number }> {
+	const myEmail = actorEmail?.trim().toLowerCase() ?? '';
+	const uniqueInvites = [
+		...new Set(
+			inviteEmails
+				.map((e) => normalizeEmail(e))
+				.filter((e) => e.length > 0 && e !== myEmail)
+		)
+	];
+	let addedMembers = 0;
+	let pendingInvites = 0;
+	if (uniqueInvites.length === 0) {
+		return { addedMembers, pendingInvites };
+	}
+	const byEmail = await findUsersByEmails(uniqueInvites);
+	for (const em of uniqueInvites) {
+		const u = byEmail.get(em);
+		if (u) {
+			if (u.id === actorUserId) continue;
+			if (await isTeamMember(u.id, teamId)) continue;
+			await db.insert(TeamMemberSchema).values({
+				teamId,
+				userId: u.id,
+				role: 'member'
+			});
+			addedMembers += 1;
+		} else {
+			const [existing] = await db
+				.select({ id: TeamInviteSchema.id })
+				.from(TeamInviteSchema)
+				.where(and(eq(TeamInviteSchema.teamId, teamId), eq(TeamInviteSchema.email, em)))
+				.limit(1);
+			if (existing) continue;
+			await db.insert(TeamInviteSchema).values({
+				teamId,
+				email: em,
+				status: 'pending'
+			});
+			pendingInvites += 1;
+		}
+	}
+	return { addedMembers, pendingInvites };
+}
+
+/**
+ * Invite more people to an existing team (any current member may invite).
+ */
+export async function inviteEmailsToExistingTeam(params: {
+	teamId: string;
+	actorUserId: string;
+	actorEmail: string | null | undefined;
+	inviteEmails: string[];
+}): Promise<{ addedMembers: number; pendingInvites: number }> {
+	if (!(await isTeamMember(params.actorUserId, params.teamId))) {
+		throw new Error('Forbidden');
+	}
+	const [t] = await db
+		.select({ id: TeamSchema.id })
+		.from(TeamSchema)
+		.where(eq(TeamSchema.id, params.teamId))
+		.limit(1);
+	if (!t) {
+		throw new Error('Team not found');
+	}
+	return applyTeamInvites(
+		params.teamId,
+		params.actorUserId,
+		params.actorEmail,
+		params.inviteEmails
+	);
 }
 
 /**
@@ -123,38 +203,12 @@ export async function createTeamWithRoot(params: {
 		role: 'owner'
 	});
 
-	const uniqueInvites = [
-		...new Set(
-			params.inviteEmails
-				.map((e) => normalizeEmail(e))
-				.filter((e) => e.length > 0 && e !== myEmail)
-		)
-	];
-	let addedMembers = 0;
-	let pendingInvites = 0;
-	if (uniqueInvites.length) {
-		const byEmail = await findUsersByEmails(uniqueInvites);
-		for (const em of uniqueInvites) {
-			const u = byEmail.get(em);
-			if (u) {
-				if (u.id === params.creatorId) continue;
-				if (await isTeamMember(u.id, teamId)) continue;
-				await db.insert(TeamMemberSchema).values({
-					teamId,
-					userId: u.id,
-					role: 'member'
-				});
-				addedMembers += 1;
-			} else {
-				await db.insert(TeamInviteSchema).values({
-					teamId,
-					email: em,
-					status: 'pending'
-				});
-				pendingInvites += 1;
-			}
-		}
-	}
+	const { addedMembers, pendingInvites } = await applyTeamInvites(
+		teamId,
+		params.creatorId,
+		params.creatorEmail,
+		params.inviteEmails
+	);
 
 	return { teamId, name: cleanName, rootFolderId, addedMembers, pendingInvites };
 }

@@ -4,6 +4,7 @@
 	import { localizeHref } from '$lib/paraglide/runtime';
 	import { fetchWithSession } from '$lib/client/fetch-session';
 	import { pathWithoutBase } from '$lib/url/path-without-base';
+	import { resolveHref } from '$lib/url/resolve-href';
 	import { page } from '$app/state';
 	import { daisyDropdown } from '$lib/actions/daisy-dropdown';
 	import { uploadFilesWithProgress } from '$lib/client/upload-drive';
@@ -33,6 +34,7 @@
 		LucideShare,
 		LucideTrash,
 		LucideUpload,
+		LucideUserPlus,
 		LucideUsers
 	} from '@lucide/svelte';
 	import { onMount } from 'svelte';
@@ -58,6 +60,11 @@
 	let newTeamEmailDraft = $state('');
 	let newTeamEmails = $state<string[]>([]);
 	let creatingTeam = $state(false);
+
+	let inviteTeamDialog = $state<HTMLDialogElement | null>(null);
+	let inviteTeamEmails = $state<string[]>([]);
+	let inviteTeamEmailDraft = $state('');
+	let invitingTeam = $state(false);
 
 	onMount(() => {
 		hydrateStorageProviderFromStorage();
@@ -119,6 +126,69 @@
 
 	function removeNewTeamEmail(email: string) {
 		newTeamEmails = newTeamEmails.filter((e) => e !== email);
+	}
+
+	function openInviteTeamDialog() {
+		inviteTeamEmails = [];
+		inviteTeamEmailDraft = '';
+		queueMicrotask(() => inviteTeamDialog?.showModal());
+	}
+
+	function addInviteTeamEmailChip() {
+		const raw = inviteTeamEmailDraft.trim();
+		if (!raw) return;
+		const parts = raw.split(/[\s,;]+/).map((s) => s.trim()).filter(Boolean);
+		const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+		for (const p of parts) {
+			if (!re.test(p)) {
+				toastService.addToast(`Invalid email: ${p}`, StatusColorEnum.WARNING);
+				continue;
+			}
+			const lower = p.toLowerCase();
+			if (!inviteTeamEmails.includes(lower)) inviteTeamEmails = [...inviteTeamEmails, lower];
+		}
+		inviteTeamEmailDraft = '';
+	}
+
+	function removeInviteTeamEmail(email: string) {
+		inviteTeamEmails = inviteTeamEmails.filter((e) => e !== email);
+	}
+
+	async function submitTeamInvites() {
+		if (!data.teamView) return;
+		addInviteTeamEmailChip();
+		const toSend = [...inviteTeamEmails];
+		if (toSend.length === 0) {
+			toastService.addToast('Add at least one email', StatusColorEnum.WARNING);
+			return;
+		}
+		invitingTeam = true;
+		try {
+			const r = await fetchWithSession(resolve(`/api/teams/${data.teamView.id}/invites`), {
+				method: 'POST',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify({ inviteEmails: toSend })
+			});
+			if (!r.ok) throw new Error(await r.text());
+			const j = (await r.json()) as { addedMembers?: number; pendingInvites?: number };
+			const extra: string[] = [];
+			if (j.addedMembers) extra.push(`${j.addedMembers} member(s) added`);
+			if (j.pendingInvites) extra.push(`${j.pendingInvites} invite(s) pending`);
+			toastService.addToast(
+				extra.length ? `Invites sent — ${extra.join('; ')}` : 'No new invites (already members or pending)',
+				extra.length ? StatusColorEnum.SUCCESS : StatusColorEnum.INFO
+			);
+			inviteTeamDialog?.close();
+			inviteTeamEmails = [];
+			inviteTeamEmailDraft = '';
+		} catch (e) {
+			toastService.addToast(
+				e instanceof Error ? e.message : 'Invite failed',
+				StatusColorEnum.ERROR
+			);
+		} finally {
+			invitingTeam = false;
+		}
 	}
 
 	async function submitNewTeam() {
@@ -622,6 +692,61 @@
 					</div>
 				</dialog>
 
+				<dialog bind:this={inviteTeamDialog} class="d-modal">
+					<div class="d-modal-box max-w-lg">
+						<h3 class="d-font-title text-lg font-bold">
+							Invite people{#if data.teamView}<span class="text-base-content/70"> — {data.teamView.name}</span>{/if}
+						</h3>
+						<p class="py-2 text-sm text-base-content/70">
+							Registered users join immediately; others get a pending invite for when they sign up.
+						</p>
+						<div class="d-form-control w-full max-w-md">
+							<span class="d-label-text">Email addresses</span>
+							<div class="flex flex-wrap items-center gap-1 rounded-lg border border-base-300 bg-base-200/30 p-2">
+								{#each inviteTeamEmails as em (em)}
+									<span class="d-badge d-badge-ghost gap-1"
+										>{em}
+										<button
+											type="button"
+											class="d-btn d-btn-ghost d-btn-xs min-h-0 px-0"
+											onclick={() => removeInviteTeamEmail(em)}
+											aria-label="Remove">×</button
+										></span
+									>
+								{/each}
+								<input
+									type="text"
+									class="d-input-ghost d-input d-input-sm min-w-[8rem] flex-1"
+									placeholder="user@example.com"
+									bind:value={inviteTeamEmailDraft}
+									disabled={invitingTeam}
+									autocomplete="off"
+									onkeydown={(e) => {
+										if (e.key === 'Enter' || e.key === ',') {
+											e.preventDefault();
+											addInviteTeamEmailChip();
+										}
+									}}
+									onblur={() => addInviteTeamEmailChip()}
+								/>
+							</div>
+						</div>
+						<div class="d-modal-action">
+							<form method="dialog">
+								<button type="submit" class="d-btn" disabled={invitingTeam}>Cancel</button>
+							</form>
+							<button
+								type="button"
+								class="d-btn d-btn-primary"
+								disabled={invitingTeam}
+								onclick={() => void submitTeamInvites()}
+							>
+								{invitingTeam ? 'Sending…' : 'Send invites'}
+							</button>
+						</div>
+					</div>
+				</dialog>
+
 				<span class="d-divider"></span>
 
 				<!-- Pages -->
@@ -686,38 +811,59 @@
 			</aside>
 			<!-- Main Content -->
 			<div class="flex min-h-0 min-w-0 flex-1 flex-col px-5">
-				<div class="flex shrink-0 justify-between rounded-lg bg-base-100 p-4">
-					<div>
-						<div class="mb-2 flex flex-wrap items-center gap-2">
+				<div
+					class="grid shrink-0 grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-2 rounded-lg bg-base-100 p-4"
+				>
+					<div class="min-w-0">
+						<div class="flex min-w-0 flex-wrap items-center gap-2">
 							{#if data.currentFolder}
 								<a class="d-btn shrink-0 gap-1 d-btn-ghost d-btn-sm" href={upFolderHref}>
 									<LucideArrowLeft class="size-4" aria-hidden="true" />
 									Up
 								</a>
 							{/if}
-							<h1 class="text-2xl font-bold">{pageTitle}</h1>
+							<h1 class="min-w-0 text-2xl font-bold break-words">{pageTitle}</h1>
 						</div>
-						<nav class="d-breadcrumbs min-w-0 pr-2 italic" aria-label="Breadcrumb">
-							<ul>
-								{#each breadcrumbs as crumb, i (String(i) + (crumb.href ?? '') + crumb.label)}
-									<li>
-										{#if crumb.isLast}
-											<span aria-current="page">{crumb.label}</span>
-										{:else if crumb.href}
-											<a href={crumb.href}>{crumb.label}</a>
-										{:else}
-											<span>{crumb.label}</span>
-										{/if}
-									</li>
-								{/each}
-							</ul>
-						</nav>
 					</div>
-					<div class="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-x-6 gap-y-2 text-sm">
-						<span class="text-sm font-medium text-error"
-							>{storageProviderLabel(activeStorageProvider)}</span
+					<div class="self-start text-right text-sm font-medium text-error">
+						{storageProviderLabel(activeStorageProvider)}
+					</div>
+
+					<nav
+						class="d-breadcrumbs min-w-0 italic [&_ul]:flex-wrap {data.teamView
+							? ''
+							: 'col-span-2'}"
+						aria-label="Breadcrumb"
+					>
+						<ul>
+							{#each breadcrumbs as crumb, i (String(i) + (crumb.href ?? '') + crumb.label)}
+								<li>
+									{#if crumb.isLast}
+										<span aria-current="page">{crumb.label}</span>
+									{:else if crumb.href}
+										<a href={crumb.href}>{crumb.label}</a>
+									{:else}
+										<span>{crumb.label}</span>
+									{/if}
+								</li>
+							{/each}
+						</ul>
+					</nav>
+					{#if data.teamView}
+						<div
+							class="d-tooltip d-tooltip-bottom d-tooltip-primary flex justify-end self-center"
+							data-tip="Invite"
 						>
-					</div>
+							<button
+								type="button"
+								class="d-btn d-btn-secondary d-btn-square d-btn-sm"
+								onclick={openInviteTeamDialog}
+								aria-label="Invite people to {data.teamView.name}"
+							>
+								<LucideUserPlus class="size-4" aria-hidden="true" />
+							</button>
+						</div>
+					{/if}
 				</div>
 				<div class="flex min-h-0 flex-1 flex-col pt-4">
 					{@render children?.()}

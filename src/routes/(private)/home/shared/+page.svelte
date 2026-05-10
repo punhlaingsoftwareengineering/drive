@@ -24,7 +24,9 @@
 		LucideDownload,
 		LucideFile,
 		LucideFolder,
-		LucideLink
+		LucideLink,
+		LucidePin,
+		LucideStar
 	} from '@lucide/svelte';
 	import { onMount } from 'svelte';
 
@@ -52,6 +54,8 @@
 		sizeBytes: number | null;
 		updatedAt: string;
 		storageProvider: StorageProviderId;
+		pinned: boolean;
+		starred: boolean;
 		color: FileLabelColorId | string | null;
 		parentId: string | null;
 		ownerName: string;
@@ -70,6 +74,8 @@
 			sizeBytes: f.sizeBytes,
 			updatedAt: f.updatedAt.slice(0, 10),
 			storageProvider: f.storageProvider,
+			pinned: f.isPinned,
+			starred: f.isStarred,
 			color: f.color as FileLabelColorId | null,
 			parentId: f.parentId ?? null,
 			ownerName: f.ownerName
@@ -114,7 +120,18 @@
 		if (browser) void loadShared();
 	});
 
-	const sortedRows = $derived(rows.slice().sort((a, b) => a.name.localeCompare(b.name)));
+	const partitionedShared = $derived.by(() => {
+		const sorted = rows.slice().sort((a, b) => a.name.localeCompare(b.name));
+		const pinned: DriveItem[] = [];
+		const starred: DriveItem[] = [];
+		const other: DriveItem[] = [];
+		for (const r of sorted) {
+			if (r.pinned) pinned.push(r);
+			else if (r.starred) starred.push(r);
+			else other.push(r);
+		}
+		return { pinned, starred, other };
+	});
 
 	const backFolderHref = $derived.by(() => {
 		const cf = data.currentFolder;
@@ -156,7 +173,7 @@
 	<div class="d-card flex min-h-0 flex-1 flex-col border border-base-300 bg-base-100 shadow-sm">
 		<div class="d-card-body flex min-h-0 flex-1 flex-col p-0">
 			<div class="min-h-0 flex-1 overflow-auto">
-				<table class="d-table w-full min-w-[44rem] d-table-zebra">
+				<table class="d-table w-full min-w-[52rem] d-table-zebra">
 					<thead>
 						<tr class="border-b border-base-300">
 							<th class="min-w-[14rem]">Name</th>
@@ -164,12 +181,106 @@
 							<th class="w-36">Modified</th>
 							<th class="w-32">Storage</th>
 							<th class="min-w-[8rem]">Owner</th>
+							<th class="w-24 text-center">Pin</th>
+							<th class="w-24 text-center">Star</th>
 							<th class="w-40 text-center">Actions</th>
 						</tr>
 					</thead>
 					<tbody>
+						{#snippet sharedRow(item: DriveItem)}
+							<tr
+								class="border-l-4 transition-colors hover:bg-info/50 {fileLabelBorderClass(
+									item.color
+								)}"
+							>
+								<td>
+									{#if item.itemType === 'folder'}
+										<button
+											type="button"
+											class="inline-flex max-w-full min-w-0 items-center gap-2 text-left font-medium hover:underline"
+											onclick={() => enterFolder(item)}
+										>
+											<LucideFolder
+												class="size-5 shrink-0 {fileLabelIconClass(item.color)}"
+												aria-hidden="true"
+											/>
+											<span class="truncate">{item.name}</span>
+										</button>
+									{:else}
+										<span class="inline-flex max-w-full min-w-0 items-center gap-2">
+											<LucideFile
+												class="size-5 shrink-0 {fileLabelIconClass(item.color ?? 'base')}"
+												aria-hidden="true"
+											/>
+											<span class="truncate font-medium">{item.name}</span>
+										</span>
+									{/if}
+								</td>
+								<td class="text-base-content/80 tabular-nums">{formatBytes(item.sizeBytes)}</td>
+								<td class="text-base-content/80">{item.updatedAt}</td>
+								<td class="text-sm">{storageProviderLabel(item.storageProvider)}</td>
+								<td
+									class="max-w-[10rem] truncate text-sm text-base-content/80"
+									title={item.ownerName}
+								>
+									{item.ownerName}
+								</td>
+								<td class="text-center">
+									<span
+										class="inline-flex justify-center"
+										title={item.pinned ? 'Pinned by owner' : 'Not pinned'}
+										aria-hidden="true"
+									>
+										<LucidePin
+											class="size-4 {item.pinned ? 'text-primary' : 'text-base-content/15'}"
+										/>
+									</span>
+								</td>
+								<td class="text-center">
+									<span
+										class="inline-flex justify-center"
+										title={item.starred ? 'Starred by owner' : 'Not starred'}
+										aria-hidden="true"
+									>
+										<LucideStar
+											class="size-4 {item.starred
+												? 'fill-warning text-warning'
+												: 'text-base-content/15'}"
+										/>
+									</span>
+								</td>
+								<td class="text-center">
+									<div class="flex items-center justify-center gap-1">
+										<button
+											type="button"
+											class="d-btn d-btn-square d-btn-ghost d-btn-sm"
+											aria-label={item.itemType === 'folder'
+												? `Download ${item.name} as ZIP`
+												: `Download ${item.name}`}
+											disabled={busyId === item.id}
+											onclick={() => void onDownloadItem(item)}
+										>
+											<LucideDownload class="size-4" />
+										</button>
+										<div
+											class="d-tooltip d-tooltip-top"
+											data-tip="Only the owner can create a public link"
+										>
+											<button
+												type="button"
+												class="d-btn d-btn-square d-btn-ghost d-btn-sm"
+												aria-label="Copy public link"
+												disabled
+											>
+												<LucideLink class="size-4" />
+											</button>
+										</div>
+									</div>
+								</td>
+							</tr>
+						{/snippet}
 						<tr class="bg-base-200/60 hover:bg-base-200/60">
-							<td colspan="6" class="py-2 text-xs font-semibold tracking-wide uppercase">
+							<td colspan="8" class="py-2 text-xs font-semibold tracking-wide uppercase">
 								{#if data.currentFolder}
 									<a
 										href={backFolderHref}
@@ -184,81 +295,60 @@
 								{/if}
 							</td>
 						</tr>
-						{#if sortedRows.length === 0 && !loading}
+						{#if rows.length === 0 && !loading}
 							<tr>
-								<td colspan="6" class="py-8 text-center text-base-content/60">
+								<td colspan="8" class="py-8 text-center text-base-content/60">
 									Nothing shared for {storageProviderLabel(driveStorage.current)} yet.
 								</td>
 							</tr>
 						{:else}
-							{#each sortedRows as item (item.id)}
-								<tr
-									class="border-l-4 transition-colors hover:bg-info/50 {fileLabelBorderClass(
-										item.color
-									)}"
-								>
-									<td>
-										{#if item.itemType === 'folder'}
-											<button
-												type="button"
-												class="inline-flex max-w-full min-w-0 items-center gap-2 text-left font-medium hover:underline"
-												onclick={() => enterFolder(item)}
-											>
-												<LucideFolder
-													class="size-5 shrink-0 {fileLabelIconClass(item.color)}"
-													aria-hidden="true"
-												/>
-												<span class="truncate">{item.name}</span>
-											</button>
-										{:else}
-											<span class="inline-flex max-w-full min-w-0 items-center gap-2">
-												<LucideFile
-													class="size-5 shrink-0 {fileLabelIconClass(item.color ?? 'base')}"
-													aria-hidden="true"
-												/>
-												<span class="truncate font-medium">{item.name}</span>
-											</span>
-										{/if}
-									</td>
-									<td class="text-base-content/80 tabular-nums">{formatBytes(item.sizeBytes)}</td>
-									<td class="text-base-content/80">{item.updatedAt}</td>
-									<td class="text-sm">{storageProviderLabel(item.storageProvider)}</td>
+							{#if partitionedShared.pinned.length > 0}
+								<tr class="bg-base-200/60 hover:bg-base-200/60">
 									<td
-										class="max-w-[10rem] truncate text-sm text-base-content/80"
-										title={item.ownerName}
+										colspan="8"
+										class="py-2 text-xs font-semibold tracking-wide text-base-content/80 uppercase"
 									>
-										{item.ownerName}
-									</td>
-									<td class="text-center">
-										<div class="flex items-center justify-center gap-1">
-											<button
-												type="button"
-												class="d-btn d-btn-square d-btn-ghost d-btn-sm"
-												aria-label={item.itemType === 'folder'
-													? `Download ${item.name} as ZIP`
-													: `Download ${item.name}`}
-												disabled={busyId === item.id}
-												onclick={() => void onDownloadItem(item)}
-											>
-												<LucideDownload class="size-4" />
-											</button>
-											<div
-												class="d-tooltip d-tooltip-top"
-												data-tip="Only the owner can create a public link"
-											>
-												<button
-													type="button"
-													class="d-btn d-btn-square d-btn-ghost d-btn-sm"
-													aria-label="Copy public link"
-													disabled
-												>
-													<LucideLink class="size-4" />
-												</button>
-											</div>
-										</div>
+										<span class="inline-flex items-center gap-2">
+											<LucidePin class="size-3.5" aria-hidden="true" />
+											Pinned
+										</span>
 									</td>
 								</tr>
-							{/each}
+								{#each partitionedShared.pinned as item (item.id)}
+									{@render sharedRow(item)}
+								{/each}
+							{/if}
+							{#if partitionedShared.starred.length > 0}
+								<tr class="bg-base-200/60 hover:bg-base-200/60">
+									<td
+										colspan="8"
+										class="py-2 text-xs font-semibold tracking-wide text-base-content/80 uppercase"
+									>
+										<span class="inline-flex items-center gap-2">
+											<LucideStar class="size-3.5" aria-hidden="true" />
+											Starred
+										</span>
+									</td>
+								</tr>
+								{#each partitionedShared.starred as item (item.id)}
+									{@render sharedRow(item)}
+								{/each}
+							{/if}
+							{#if partitionedShared.other.length > 0}
+								{#if partitionedShared.pinned.length > 0 || partitionedShared.starred.length > 0}
+									<tr class="bg-base-200/60 hover:bg-base-200/60">
+										<td
+											colspan="8"
+											class="py-2 text-xs font-semibold tracking-wide text-base-content/80 uppercase"
+										>
+											More
+										</td>
+									</tr>
+								{/if}
+								{#each partitionedShared.other as item (item.id)}
+									{@render sharedRow(item)}
+								{/each}
+							{/if}
 						{/if}
 					</tbody>
 				</table>
