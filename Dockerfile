@@ -18,12 +18,14 @@ WORKDIR /app
 RUN corepack enable
 
 ENV NODE_ENV=production
-ENV PORT=5173
+# 1. Update the environment variable for your Node app
+ENV PORT=1025
 
 COPY --from=builder /app/build ./build
 COPY --from=builder /app/package.json ./
 COPY --from=builder /app/node_modules ./node_modules
 
-EXPOSE 5173
+# 2. Update the exposed port for Docker documentation/mapping
+EXPOSE 1025
 
 CMD ["node", "build"]
