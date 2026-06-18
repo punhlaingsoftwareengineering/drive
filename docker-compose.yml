@@ -4,7 +4,7 @@ services:
     ports:
       - '1025:1025'
     environment:
-      ORIGIN: http://localhost:1025
+      ORIGIN: ${ORIGIN:-http://localhost:1025}
       PORT: '1025'
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
       DATABASE_URL: ${DATABASE_URL}

@@ -85,6 +85,17 @@
 		toastService.addToast(`Storage target: ${storageProviderLabel(v)}`, StatusColorEnum.INFO);
 	}
 
+	async function logOut() {
+		try {
+			await fetch(resolve('/api/auth/logout'), {
+				method: 'POST',
+				headers: { accept: 'application/json' }
+			});
+		} finally {
+			await goto(resolve('/auth/login'));
+		}
+	}
+
 	function openUploadDialog() {
 		pickerFiles = [];
 		uploadProgress = 0;
@@ -480,9 +491,7 @@
 						</button>
 					</li>
 					<li>
-						<form method="POST" action={resolve(`/api/auth/logout`)}>
-							<button type="submit" class="w-full text-left">Logout</button>
-						</form>
+						<button type="button" class="w-full text-left" onclick={logOut}>Logout</button>
 					</li>
 				</ul>
 			</div>

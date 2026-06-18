@@ -151,9 +151,12 @@ Note: Docker image builds run without Fly secrets. Auth initialization is **buil
 ## Troubleshooting (production)
 
 - **Login fails with “Cross-site POST form submissions are forbidden”**
-  - Ensure `ORIGIN` matches the public URL exactly (protocol + hostname + port if non-default, no trailing slash)
-  - Behind a reverse proxy: set `PROTOCOL_HEADER=x-forwarded-proto` and `HOST_HEADER=x-forwarded-host`
-  - On Fly: these are already in `fly.toml`; confirm `ORIGIN` secret matches your public URL
+  - Set `ORIGIN` to the exact browser URL (e.g. `http://10.100.100.67:1025`, not `localhost`)
+  - Do not set `PROTOCOL_HEADER` / `HOST_HEADER` when accessing the container directly over HTTP
+  - Behind a reverse proxy: set proxy headers and `ORIGIN=https://your-domain`
+- **OTP “expired” immediately on HTTP LAN**
+  - Caused by `Secure` cookies on plain HTTP — fixed when `ORIGIN` uses `http://` (cookies are only Secure for `https://` origins)
+  - Rebuild/redeploy after updating `ORIGIN`, then request a new OTP
 - **Build fails complaining about Better Auth secret**
   - Runtime must have `BETTER_AUTH_SECRET` set
   - CI/Docker builds should pass without secrets (placeholders are used only during the build step)

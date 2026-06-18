@@ -1,6 +1,7 @@
 import { SendOtpBodyEmailInterface } from '$lib/model/interface/auth.interface';
 import { getFromAddress, getSmtpTransport } from '$lib/server/mailer';
 import { generateOtp, hashOtp, sealSignupOtpCookie } from '$lib/server/signup-otp';
+import { useSecureCookies } from '$lib/server/public-origin';
 import { dev } from '$app/environment';
 import { error, json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
@@ -25,7 +26,7 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 		{
 			httpOnly: true,
 			sameSite: 'lax',
-			secure: !dev,
+			secure: useSecureCookies(),
 			path: '/',
 			maxAge: 10 * 60
 		}

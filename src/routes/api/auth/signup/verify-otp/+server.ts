@@ -1,6 +1,6 @@
 import { VerifyOtpBodyEmailInterface } from '$lib/model/interface/auth.interface';
 import { hashOtp, unsealSignupOtpCookie } from '$lib/server/signup-otp';
-import { dev } from '$app/environment';
+import { useSecureCookies } from '$lib/server/public-origin';
 import { error, json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
@@ -25,7 +25,7 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 	cookies.set('signup_otp_verified', String(sealed.expiresAt), {
 		httpOnly: true,
 		sameSite: 'lax',
-		secure: !dev,
+		secure: useSecureCookies(),
 		path: '/',
 		maxAge: 10 * 60
 	});

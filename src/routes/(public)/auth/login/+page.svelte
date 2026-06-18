@@ -19,8 +19,36 @@
 	let showResetSuccess = $state(false);
 	let showSessionExpired = $state(false);
 	let socialError = $state<string | null>(null);
+	let loginError = $state<string | null>(null);
+	let isSubmitting = $state(false);
 
 	type SocialProvider = 'github' | 'google';
+
+	async function logIn(e: SubmitEvent) {
+		e.preventDefault();
+		loginError = null;
+		isSubmitting = true;
+		try {
+			const res = await fetch(resolve('/api/auth/login'), {
+				method: 'POST',
+				headers: {
+					'content-type': 'application/json',
+					accept: 'application/json'
+				},
+				body: JSON.stringify({ email, password })
+			});
+			if (!res.ok) {
+				const text = await res.text().catch(() => '');
+				loginError = text || 'Invalid email or password';
+				return;
+			}
+			await goto(resolve('/home'));
+		} catch {
+			loginError = 'Network error. Please try again.';
+		} finally {
+			isSubmitting = false;
+		}
+	}
 
 	async function signInWithSocial(provider: SocialProvider) {
 		socialError = null;
@@ -82,7 +110,12 @@
 			<fieldset class="d-fieldset w-xs rounded-box border border-base-300 bg-base-200 p-4">
 				<legend class="my-ft-h1 d-fieldset-legend">LOGIN</legend>
 				<!-- Email Login -->
-				<form action={resolve(`/api/auth/login`)} method="POST" class="flex flex-col gap-5">
+				<form class="flex flex-col gap-5" onsubmit={logIn}>
+					{#if loginError}
+						<div class="d-alert d-alert-error">
+							<span>{loginError}</span>
+						</div>
+					{/if}
 					{#if showSessionExpired}
 						<div class="d-alert d-alert-warning">
 							<span>Your session expired. Sign in again to continue.</span>
@@ -116,7 +149,9 @@
 						</button>
 					</div>
 
-					<button class="d-btn d-btn-primary" type="submit">Confirm</button>
+					<button class="d-btn d-btn-primary" type="submit" disabled={isSubmitting}>
+						{isSubmitting ? 'Signing in…' : 'Confirm'}
+					</button>
 				</form>
 
 				<div class="mt-3 flex flex-col gap-4">

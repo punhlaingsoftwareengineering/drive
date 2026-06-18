@@ -26,6 +26,7 @@
     "npm:better-auth@~1.4.21": "1.4.21_@sveltejs+kit@2.65.0__@sveltejs+vite-plugin-svelte@6.2.4___svelte@5.56.3___vite@7.3.5____@types+node@24.13.2___@types+node@24.13.2__svelte@5.56.3__typescript@5.9.3__vite@7.3.5___@types+node@24.13.2__@types+node@24.13.2_drizzle-kit@0.31.10_drizzle-orm@0.45.2__@neondatabase+serverless@1.1.0__kysely@0.28.17__pg@8.21.0_pg@8.21.0_svelte@5.56.3_vitest@4.1.8__@types+node@24.13.2__@vitest+browser-playwright@4.1.8__vite@7.3.5___@types+node@24.13.2__playwright@1.60.0_@neondatabase+serverless@1.1.0_@sveltejs+vite-plugin-svelte@6.2.4__svelte@5.56.3__vite@7.3.5___@types+node@24.13.2__@types+node@24.13.2_@types+node@24.13.2_@vitest+browser-playwright@4.1.8__playwright@1.60.0__vitest@4.1.8__@types+node@24.13.2__vite@7.3.5___@types+node@24.13.2_playwright@1.60.0_typescript@5.9.3_vite@7.3.5__@types+node@24.13.2",
     "npm:d3@^7.9.0": "7.9.0",
     "npm:daisyui@^5.5.19": "5.5.23",
+    "npm:drizzle-kit@*": "0.31.10",
     "npm:drizzle-kit@~0.31.8": "0.31.10",
     "npm:drizzle-orm@~0.45.1": "0.45.2_@neondatabase+serverless@1.1.0_kysely@0.28.17_pg@8.21.0",
     "npm:eslint-config-prettier@^10.1.8": "10.1.8_eslint@10.5.0",

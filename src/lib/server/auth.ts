@@ -12,6 +12,7 @@ import {
 	AuthVerificationSchema
 } from '$lib/server/db/schema/auth-schema/auth.schema';
 import { getFromAddress, getSmtpTransport } from '$lib/server/mailer';
+import { getConfiguredOrigin, useSecureCookies } from '$lib/server/public-origin';
 
 /**
  * CI/Docker image builds (e.g. `flyctl deploy --remote-only`) run `deno task build` without Fly secrets.
@@ -21,11 +22,7 @@ import { getFromAddress, getSmtpTransport } from '$lib/server/mailer';
 const isBuildStep = building || process.env.BUILDING === 'true';
 
 const baseURL =
-	(typeof env.ORIGIN === 'string' && env.ORIGIN.trim() ? env.ORIGIN.trim() : undefined) ??
-	(typeof process.env.ORIGIN === 'string' && process.env.ORIGIN.trim()
-		? process.env.ORIGIN.trim()
-		: undefined) ??
-	(isBuildStep ? 'http://localhost:1025' : undefined);
+	getConfiguredOrigin() ?? (isBuildStep ? 'http://localhost:1025' : undefined);
 
 const secret =
 	(typeof env.BETTER_AUTH_SECRET === 'string' && env.BETTER_AUTH_SECRET.trim()
@@ -52,6 +49,9 @@ if (!isBuildStep && process.env.NODE_ENV === 'production') {
 export const auth = betterAuth({
 	baseURL: baseURL!,
 	secret: secret!,
+	advanced: {
+		useSecureCookies: useSecureCookies()
+	},
 	user: {
 		additionalFields: {
 			developerModeEnabled: {
