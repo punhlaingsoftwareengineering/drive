@@ -2,54 +2,24 @@ import { resolve as resolveAppPath } from '$app/paths';
 import { redirectToLoginSessionExpired } from '$lib/client/fetch-session';
 import type { StorageProviderId } from '$lib/model/storage-provider';
 
-/** Use multipart chunking above this size (bytes). */
+/** Use chunked binary upload above this size (bytes). */
 export const UPLOAD_CHUNK_BYTES = 1024 * 1024; // 1 MiB
 
-function postChunk(
-	fd: FormData,
-	onPartProgress: (loaded: number, total: number) => void,
-	fileTotal: number,
-	loadedSoFar: number
-): Promise<{
-	uploadId?: string;
-	done?: boolean;
-	ok?: boolean;
-	created?: { id: string; name: string }[];
-}> {
-	return new Promise((resolve, reject) => {
-		const xhr = new XMLHttpRequest();
-		xhr.upload.addEventListener('progress', (e) => {
-			if (e.lengthComputable) {
-				onPartProgress(loadedSoFar + e.loaded, fileTotal);
-			}
-		});
-		xhr.addEventListener('load', () => {
-			if (xhr.status === 401) {
-				redirectToLoginSessionExpired();
-				reject(new Error('Session expired. Sign in again.'));
-				return;
-			}
-			if (xhr.status >= 200 && xhr.status < 300) {
-				try {
-					resolve(JSON.parse(xhr.responseText || '{}'));
-				} catch {
-					resolve({});
-				}
-			} else {
-				reject(new Error(xhr.responseText || `Chunk upload failed (${xhr.status})`));
-			}
-		});
-		xhr.addEventListener('error', () => reject(new Error('Network error')));
-		xhr.open('POST', resolveAppPath('/api/drive/upload/chunk'));
-		xhr.withCredentials = true;
-		xhr.send(fd);
-	});
+function uploadQuery(params: Record<string, string | number | undefined | null>): string {
+	const qs = new URLSearchParams();
+	for (const [key, value] of Object.entries(params)) {
+		if (value === undefined || value === null || value === '') continue;
+		qs.set(key, String(value));
+	}
+	const encoded = qs.toString();
+	return encoded ? `?${encoded}` : '';
 }
 
-function postMultipart(
-	fd: FormData,
+function postBinary(
+	pathWithQuery: string,
+	body: Blob,
 	onProgress: (loaded: number, total: number) => void
-): Promise<unknown> {
+): Promise<string> {
 	return new Promise((resolve, reject) => {
 		const xhr = new XMLHttpRequest();
 		xhr.upload.addEventListener('progress', (e) => {
@@ -62,19 +32,47 @@ function postMultipart(
 				return;
 			}
 			if (xhr.status >= 200 && xhr.status < 300) {
-				try {
-					resolve(JSON.parse(xhr.responseText || '{}'));
-				} catch {
-					resolve({ ok: true });
-				}
-			} else {
-				reject(new Error(xhr.responseText || `Upload failed (${xhr.status})`));
+				resolve(xhr.responseText || '{}');
+				return;
 			}
+			reject(new Error(xhr.responseText || `Upload failed (${xhr.status})`));
 		});
 		xhr.addEventListener('error', () => reject(new Error('Network error')));
-		xhr.open('POST', resolveAppPath('/api/drive/upload'));
+		xhr.open('POST', resolveAppPath(pathWithQuery));
 		xhr.withCredentials = true;
-		xhr.send(fd);
+		xhr.setRequestHeader('Content-Type', 'application/octet-stream');
+		xhr.setRequestHeader('Accept', 'application/json');
+		xhr.send(body);
+	});
+}
+
+function postChunk(
+	query: Record<string, string | number | undefined | null>,
+	chunk: Blob,
+	onPartProgress: (loaded: number, total: number) => void,
+	fileTotal: number,
+	loadedSoFar: number
+): Promise<{
+	uploadId?: string;
+	done?: boolean;
+	ok?: boolean;
+	created?: { id: string; name: string }[];
+}> {
+	return postBinary(
+		`/api/drive/upload/chunk${uploadQuery(query)}`,
+		chunk,
+		(loaded, total) => onPartProgress(loadedSoFar + loaded, fileTotal)
+	).then((text) => {
+		try {
+			return JSON.parse(text) as {
+				uploadId?: string;
+				done?: boolean;
+				ok?: boolean;
+				created?: { id: string; name: string }[];
+			};
+		} catch {
+			return {};
+		}
 	});
 }
 
@@ -93,20 +91,19 @@ async function uploadOneFileChunked(
 		const start = i * UPLOAD_CHUNK_BYTES;
 		const end = Math.min(start + UPLOAD_CHUNK_BYTES, file.size);
 		const slice = file.slice(start, end);
-		const fd = new FormData();
-		fd.append('chunkIndex', String(i));
-		fd.append('chunkCount', String(chunkCount));
-		fd.append('chunk', slice, file.name);
-		fd.append('storageProvider', storageProvider);
-		if (uploadId) fd.append('uploadId', uploadId);
-		if (i === 0) {
-			fd.append('fileName', file.name);
-			fd.append('mimeType', file.type || 'application/octet-stream');
-			if (parentFolderId) fd.append('parentId', parentFolderId);
-			if (teamId) fd.append('teamId', teamId);
-		}
 
-		const res = await postChunk(fd, onProgress, file.size, loaded);
+		const query: Record<string, string | number | undefined | null> = {
+			chunkIndex: i,
+			chunkCount,
+			uploadId,
+			storageProvider: i === 0 ? storageProvider : undefined,
+			fileName: i === 0 ? file.name : undefined,
+			mimeType: i === 0 ? file.type || 'application/octet-stream' : undefined,
+			parentId: i === 0 ? parentFolderId : undefined,
+			teamId: i === 0 ? teamId : undefined
+		};
+
+		const res = await postChunk(query, slice, onProgress, file.size, loaded);
 		if (res.uploadId) uploadId = res.uploadId;
 		loaded += end - start;
 		onProgress(loaded, file.size);
@@ -115,7 +112,8 @@ async function uploadOneFileChunked(
 }
 
 /**
- * Multipart upload with progress. Large files are sent in 1 MiB chunks to `/api/drive/upload/chunk`.
+ * Binary upload with progress. Large files are sent in 1 MiB chunks to `/api/drive/upload/chunk`.
+ * Uses `application/octet-stream` (not multipart) to avoid SvelteKit CSRF origin checks on LAN HTTP.
  */
 export function uploadFilesWithProgress(
 	files: File[],
@@ -143,14 +141,17 @@ export function uploadFilesWithProgress(
 					doneBytes += file.size;
 					onProgress(doneBytes, totalBytes);
 				} else {
-					const fd = new FormData();
-					fd.append('storageProvider', storageProvider);
-					if (parentFolderId) fd.append('parentId', parentFolderId);
-					if (teamId) fd.append('teamId', teamId);
-					fd.append('file', file);
-					await postMultipart(fd, (loaded, total) => {
-						onProgress(doneBytes + loaded, totalBytes);
-					});
+					await postBinary(
+						`/api/drive/upload${uploadQuery({
+							storageProvider,
+							parentId: parentFolderId,
+							teamId,
+							fileName: file.name,
+							mimeType: file.type || 'application/octet-stream'
+						})}`,
+						file,
+						(loaded, total) => onProgress(doneBytes + loaded, totalBytes)
+					);
 					doneBytes += file.size;
 					onProgress(doneBytes, totalBytes);
 				}

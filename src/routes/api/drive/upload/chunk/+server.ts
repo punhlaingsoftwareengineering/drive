@@ -1,74 +1,19 @@
 import { appendChunk, readAssembled, removeSession } from '$lib/server/drive-upload-chunk-store';
-import { requireApiSession } from '$lib/server/require-api-session';
-import { isTeamMember } from '$lib/server/team-access';
+import { parseChunkUploadQuery, readUploadBody } from '$lib/server/drive-upload-query';
 import { persistSealedUpload } from '$lib/server/drive-upload-persist';
-import { STORAGE_PROVIDERS, type StorageProviderId } from '$lib/model/storage-provider';
+import { requireApiSession } from '$lib/server/require-api-session';
 import { error, json } from '@sveltejs/kit';
-import { z } from 'zod';
 import type { RequestHandler } from './$types';
 
 const MAX_BYTES = 100 * 1024 * 1024;
 
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async ({ request, url }) => {
 	const session = await requireApiSession(request);
-
-	const formData = await request.formData();
-	const chunkIndex = Number(formData.get('chunkIndex'));
-	const chunkCount = Number(formData.get('chunkCount'));
-	const uploadIdRaw = formData.get('uploadId');
-	const uploadId =
-		typeof uploadIdRaw === 'string' && uploadIdRaw.trim() !== '' ? uploadIdRaw.trim() : null;
-
-	const chunkEntry = formData.get('chunk');
-	if (!(chunkEntry instanceof File)) throw error(400, 'Missing chunk');
-
-	const buf = Buffer.from(await chunkEntry.arrayBuffer());
-	if (!Number.isInteger(chunkIndex) || !Number.isInteger(chunkCount) || chunkCount < 1) {
-		throw error(400, 'Invalid chunk indices');
-	}
-
 	const userId = session.user.id;
 
-	let init:
-		| {
-				fileName: string;
-				mimeType: string;
-				storageProvider: StorageProviderId;
-				parentId: string | null;
-				teamId: string | null;
-		  }
-		| undefined;
-
-	if (chunkIndex === 0) {
-		const sp = String(formData.get('storageProvider') ?? 'local');
-		if (!STORAGE_PROVIDERS.includes(sp as StorageProviderId)) {
-			throw error(400, 'Invalid storage provider');
-		}
-		const parentRaw = formData.get('parentId');
-		let parentId: string | null = null;
-		if (typeof parentRaw === 'string' && parentRaw.trim() !== '') {
-			const p = z.string().uuid().safeParse(parentRaw.trim());
-			if (!p.success) throw error(400, 'Invalid parent folder');
-			parentId = p.data;
-		}
-		let teamId: string | null = null;
-		const teamRaw = formData.get('teamId');
-		if (typeof teamRaw === 'string' && teamRaw.trim() !== '') {
-			const t = z.string().uuid().safeParse(teamRaw.trim());
-			if (!t.success) throw error(400, 'Invalid team id');
-			if (!(await isTeamMember(userId, t.data))) {
-				throw error(403, 'Forbidden');
-			}
-			teamId = t.data;
-		}
-		init = {
-			fileName: String(formData.get('fileName') ?? 'unnamed'),
-			mimeType: String(formData.get('mimeType') ?? 'application/octet-stream'),
-			storageProvider: sp as StorageProviderId,
-			parentId,
-			teamId
-		};
-	}
+	const chunkIndex = Number(url.searchParams.get('chunkIndex'));
+	const { chunkCount, uploadId, init } = await parseChunkUploadQuery(url, userId, chunkIndex);
+	const buf = await readUploadBody(request);
 
 	try {
 		const { uploadId: sid, meta } = await appendChunk(

@@ -157,6 +157,9 @@ Note: Docker image builds run without Fly secrets. Auth initialization is **buil
 - **OTP “expired” immediately on HTTP LAN**
   - Caused by `Secure` cookies on plain HTTP — fixed when `ORIGIN` uses `http://` (cookies are only Secure for `https://` origins)
   - Rebuild/redeploy after updating `ORIGIN`, then request a new OTP
+- **Upload fails with “Cross-site POST form submissions are forbidden”**
+  - Uploads use binary `application/octet-stream` (not multipart) — rebuild/redeploy if you still see this on an old image
+  - Ensure `ORIGIN` matches the browser URL exactly (e.g. `http://10.100.100.67:1025`)
 - **Build fails complaining about Better Auth secret**
   - Runtime must have `BETTER_AUTH_SECRET` set
   - CI/Docker builds should pass without secrets (placeholders are used only during the build step)
