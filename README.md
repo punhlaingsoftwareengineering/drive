@@ -15,6 +15,7 @@ ZNL-DRIVE is a SvelteKit app that provides a simple “drive” experience with 
 ## Tech stack
 
 - **SvelteKit** + **Svelte 5** (adapter-node)
+- **Deno 2** for install, dev, build, and scripts
 - **Postgres** via **Drizzle ORM** (Neon serverless driver)
 - **Better Auth** sessions/cookies
 - **Tigris Storage** SDK
@@ -23,8 +24,8 @@ ZNL-DRIVE is a SvelteKit app that provides a simple “drive” experience with 
 
 ### Prerequisites
 
-- Node.js (project is built against Node 24)
-- `pnpm` (Corepack is used)
+- [Deno 2.x](https://docs.deno.com/runtime/getting_started/installation/) — install deps and run tasks (`deno task …`)
+- Node.js — used by Vite/SvelteKit build CLI (Deno’s npm runner breaks tsconfig `extends` resolution); also the production runtime in Docker
 - Postgres database (local or hosted)
 
 ### Setup
@@ -32,8 +33,7 @@ ZNL-DRIVE is a SvelteKit app that provides a simple “drive” experience with 
 1. Install dependencies:
 
 ```bash
-corepack enable
-pnpm install
+deno install
 ```
 
 2. Create an `.env` file:
@@ -45,22 +45,22 @@ cp .env.example .env
 3. Fill in required variables in `.env`:
 
 - `DATABASE_URL`
-- `ORIGIN` (local example: `http://localhost:5173`)
+- `ORIGIN` (local example: `http://localhost:1025`)
 - `BETTER_AUTH_SECRET`
 
 4. Push DB schema:
 
 ```bash
-pnpm db:push
+deno task db:push
 ```
 
 5. Start dev server:
 
 ```bash
-pnpm dev
+deno task dev
 ```
 
-Open `http://localhost:5173`.
+Open `http://localhost:1025`.
 
 ## Environment variables
 
@@ -68,8 +68,10 @@ See `.env.example`. Key variables:
 
 - **`DATABASE_URL`**: Postgres connection string
 - **`ORIGIN`**: public site URL (no trailing slash)
-  - local: `http://localhost:5173`
+  - local: `http://localhost:1025`
+  - LAN: `http://192.168.x.x:1025` (exact URL users type in the browser)
   - Fly.io: `https://YOUR_APP.fly.dev` (or your custom domain)
+- **`PORT`**: listen port for adapter-node (default `1025` in Docker/Fly)
 - **`BETTER_AUTH_SECRET`**: required in production (use a strong random secret)
 - **OAuth (optional)**:
   - `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`
@@ -77,12 +79,12 @@ See `.env.example`. Key variables:
 
 ## Database workflows
 
-Common scripts:
+Common tasks (from `deno.json`):
 
-- **`pnpm db:push`**: push schema to the database
-- **`pnpm db:generate`**: generate migrations (if you’re using migrations)
-- **`pnpm db:migrate`**: run migrations
-- **`pnpm db:studio`**: open Drizzle Studio
+- **`deno task db:push`**: push schema to the database
+- **`deno task db:generate`**: generate migrations (if you’re using migrations)
+- **`deno task db:migrate`**: run migrations
+- **`deno task db:studio`**: open Drizzle Studio
 
 ## Storage providers
 
@@ -93,13 +95,42 @@ This project supports:
 
 If you add another provider later, the cleanest next step is typically another **S3-compatible** backend (AWS S3, Cloudflare R2, MinIO, Backblaze B2 S3 API, Wasabi, etc.).
 
-## Deployment (Fly.io)
+## Deployment
 
-This repo is configured for Fly with `fly.toml` and a Dockerfile.
+This repo ships with a Dockerfile, optional `docker-compose.yml`, and Fly.io config (`fly.toml`).
 
-### Required secrets on Fly
+### Docker (local server or cloud VM)
 
-Set secrets (examples):
+```bash
+docker build -t znl-drive .
+docker run -p 1025:1025 \
+  -e ORIGIN=http://YOUR_HOST:1025 \
+  -e BETTER_AUTH_SECRET=... \
+  -e DATABASE_URL='postgresql://...' \
+  znl-drive
+```
+
+Or with compose:
+
+```bash
+docker compose up --build
+```
+
+### Deployment matrix (avoid CSRF / login errors)
+
+SvelteKit verifies form POST origins. Set env vars to match how users reach the app:
+
+| Scenario | Required env |
+|----------|----------------|
+| Direct access (LAN/cloud VM, no proxy) | `ORIGIN=http://YOUR_IP:1025` |
+| Fly.io / cloud with TLS terminator | `ORIGIN=https://your-domain` + `PROTOCOL_HEADER` + `HOST_HEADER` (in `fly.toml`) |
+| nginx / Caddy / Traefik in front | `ORIGIN` + proxy headers; proxy must send `X-Forwarded-Proto` and `X-Forwarded-Host` |
+
+Do **not** set `PROTOCOL_HEADER` / `HOST_HEADER` when accessing the container directly without a trusted reverse proxy.
+
+### Fly.io
+
+Required secrets (examples):
 
 ```bash
 fly secrets set ORIGIN=https://YOUR_APP.fly.dev
@@ -107,15 +138,7 @@ fly secrets set BETTER_AUTH_SECRET=YOUR_LONG_RANDOM_SECRET
 fly secrets set DATABASE_URL='postgresql://...'
 ```
 
-### Important: CSRF / “Cross-site POST form submissions are forbidden”
-
-SvelteKit protects POST form actions by verifying the request origin. On Fly, your app often receives HTTP internally while the browser is on HTTPS.
-
-This repo sets the adapter-node env var in `fly.toml`:
-
-- `PROTOCOL_HEADER='x-forwarded-proto'`
-
-That tells SvelteKit to treat requests as HTTPS based on Fly’s `X-Forwarded-Proto`.
+`fly.toml` sets `internal_port = 1025`, `PORT=1025`, `PROTOCOL_HEADER`, and `HOST_HEADER` for Fly’s TLS edge.
 
 ### GitHub Actions deploy
 
@@ -123,29 +146,30 @@ Deployment is done via `.github/workflows/fly-deploy.yml` using:
 
 - `flyctl deploy --remote-only`
 
-Note: Docker image builds in CI run without Fly secrets. Auth initialization is **build-safe** (placeholders during `pnpm run build`) but the app will still require real `ORIGIN`/`BETTER_AUTH_SECRET` at runtime in production.
+Note: Docker image builds run without Fly secrets. Auth initialization is **build-safe** (placeholders during `deno task build`) but the app still requires real `ORIGIN`/`BETTER_AUTH_SECRET` at runtime in production.
 
 ## Troubleshooting (production)
 
 - **Login fails with “Cross-site POST form submissions are forbidden”**
-  - Ensure Fly has `PROTOCOL_HEADER='x-forwarded-proto'` (already in `fly.toml`)
-  - Ensure `ORIGIN` matches the public URL exactly (protocol + hostname, no trailing slash)
+  - Ensure `ORIGIN` matches the public URL exactly (protocol + hostname + port if non-default, no trailing slash)
+  - Behind a reverse proxy: set `PROTOCOL_HEADER=x-forwarded-proto` and `HOST_HEADER=x-forwarded-host`
+  - On Fly: these are already in `fly.toml`; confirm `ORIGIN` secret matches your public URL
 - **Build fails complaining about Better Auth secret**
-  - Runtime must have `BETTER_AUTH_SECRET` set (Fly secret)
-  - CI builds should pass without secrets (placeholders are used only during the build step)
+  - Runtime must have `BETTER_AUTH_SECRET` set
+  - CI/Docker builds should pass without secrets (placeholders are used only during the build step)
 - **Database unavailable**
-  - Confirm `DATABASE_URL` is set on Fly and reachable from your app region
+  - Confirm `DATABASE_URL` is set and reachable from your app region/host
 
 ## Scripts
 
-From `package.json`:
+From `deno.json`:
 
-- `pnpm dev` — dev server
-- `pnpm build` — build
-- `pnpm preview` — preview build
-- `pnpm check` — svelte-check
-- `pnpm lint` / `pnpm format`
-- `pnpm test` — unit + e2e
+- `deno task dev` — dev server (port 1025)
+- `deno task build` — production build
+- `deno task preview` — preview build (port 1025)
+- `deno task check` — svelte-check
+- `deno task lint` / `deno task format`
+- `deno task test` — unit + e2e
 
 ## License
 

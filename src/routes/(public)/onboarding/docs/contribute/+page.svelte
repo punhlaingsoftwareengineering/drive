@@ -31,7 +31,7 @@
 		{
 			href: '/onboarding/docs/contribute/workflows',
 			title: 'Workflows',
-			desc: '`pnpm dev`, `pnpm check`, `pnpm test`.',
+			desc: '`deno task dev`, `deno task check`, `deno task test`.',
 			Icon: LucideWorkflow
 		},
 		{

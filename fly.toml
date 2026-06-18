@@ -9,7 +9,7 @@ primary_region = 'sin'
 [build]
 
 [http_service]
-  internal_port = 5173
+  internal_port = 1025
   force_https = true
   auto_stop_machines = 'stop'
   auto_start_machines = true
@@ -22,7 +22,9 @@ primary_region = 'sin'
 # Also set ORIGIN to the same public URL (Better Auth baseURL), e.g.:
 #   fly secrets set ORIGIN=https://your-app.fly.dev
 [env]
+  PORT = '1025'
   PROTOCOL_HEADER = 'x-forwarded-proto'
+  HOST_HEADER = 'x-forwarded-host'
 
 [[vm]]
   memory = '1gb'

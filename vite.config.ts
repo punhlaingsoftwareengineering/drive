@@ -15,8 +15,8 @@ export default defineConfig({
 	test: {
 		expect: { requireAssertions: true },
 		projects: (() => {
-			// Default to server-only tests so `pnpm test:unit -- --run` works on machines
-			// without Playwright browsers installed. Opt-in with: VITEST_BROWSER=1 pnpm test:unit
+			// Default to server-only tests so `deno task test:unit -- --run` works on machines
+			// without Playwright browsers installed. Opt-in with: VITEST_BROWSER=1 deno task test:unit
 			const enableBrowser = process.env.VITEST_BROWSER === '1';
 			return [
 				...(enableBrowser

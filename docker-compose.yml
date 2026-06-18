@@ -1,0 +1,24 @@
+services:
+  app:
+    build: .
+    ports:
+      - '1025:1025'
+    environment:
+      ORIGIN: http://localhost:1025
+      PORT: '1025'
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
+      DATABASE_URL: ${DATABASE_URL}
+    env_file:
+      - .env
+
+# For HTTPS on a LAN or cloud VM, put a reverse proxy in front and forward headers.
+# Example nginx location block (uncomment and add an nginx service if needed):
+#
+#   proxy_set_header Host $host;
+#   proxy_set_header X-Forwarded-Proto $scheme;
+#   proxy_set_header X-Forwarded-Host $host;
+#
+# Then set on the app:
+#   ORIGIN=https://drive.example.com
+#   PROTOCOL_HEADER=x-forwarded-proto
+#   HOST_HEADER=x-forwarded-host

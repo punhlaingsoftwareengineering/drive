@@ -1,6 +1,7 @@
 import { betterAuth } from 'better-auth/minimal';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { sveltekitCookies } from 'better-auth/svelte-kit';
+import { building } from '$app/environment';
 import { env } from '$env/dynamic/private';
 import { getRequestEvent } from '$app/server';
 import { db } from '$lib/server/db';
@@ -13,18 +14,18 @@ import {
 import { getFromAddress, getSmtpTransport } from '$lib/server/mailer';
 
 /**
- * CI/Docker image builds (e.g. `flyctl deploy --remote-only`) run `pnpm run build` without Fly secrets.
+ * CI/Docker image builds (e.g. `flyctl deploy --remote-only`) run `deno task build` without Fly secrets.
  * Better Auth throws if it falls back to its default secret/base URL. We provide safe placeholders
  * during the build step so compilation succeeds, but we still fail fast at runtime in production.
  */
-const isBuildStep = process.env.npm_lifecycle_event === 'build' || process.env.BUILDING === 'true';
+const isBuildStep = building || process.env.BUILDING === 'true';
 
 const baseURL =
 	(typeof env.ORIGIN === 'string' && env.ORIGIN.trim() ? env.ORIGIN.trim() : undefined) ??
 	(typeof process.env.ORIGIN === 'string' && process.env.ORIGIN.trim()
 		? process.env.ORIGIN.trim()
 		: undefined) ??
-	(isBuildStep ? 'http://localhost:5173' : undefined);
+	(isBuildStep ? 'http://localhost:1025' : undefined);
 
 const secret =
 	(typeof env.BETTER_AUTH_SECRET === 'string' && env.BETTER_AUTH_SECRET.trim()

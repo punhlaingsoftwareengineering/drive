@@ -6,17 +6,19 @@ Create a **`.env`** file locally (never commit secrets). Typical values include 
 
 Use **`$env/dynamic/private`** or static `$env/static/private` in server code as elsewhere in the project.
 
+Set **`ORIGIN`** to the exact URL users type in the browser (e.g. `http://localhost:1025` for local dev).
+
 ## Database workflow
 
-From `package.json` scripts:
+From `deno.json` tasks:
 
-- **`pnpm db:push`** — push Drizzle schema to the database (fast iteration).
-- **`pnpm db:generate`** — generate SQL migrations from schema drift.
-- **`pnpm db:migrate`** — apply migrations.
-- **`pnpm db:studio`** — open Drizzle Studio against your database.
+- **`deno task db:push`** — push Drizzle schema to the database (fast iteration).
+- **`deno task db:generate`** — generate SQL migrations from schema drift.
+- **`deno task db:migrate`** — apply migrations.
+- **`deno task db:studio`** — open Drizzle Studio against your database.
 
 Neon (or any Postgres) works as long as the connection string matches Drizzle’s driver configuration.
 
 ## Auth schema
 
-When Better Auth schema changes, the repo may include a helper script such as `pnpm auth:schema` to regenerate typed tables—run it after updating auth config if the project documents that step.
+When Better Auth schema changes, the repo may include a helper script such as `deno task auth:schema` to regenerate typed tables—run it after updating auth config if the project documents that step.

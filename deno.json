@@ -1,0 +1,23 @@
+{
+	"version": "1.0.0",
+	"nodeModulesDir": "auto",
+	"tasks": {
+		"dev": "deno task sync && node ./node_modules/vite/bin/vite.js dev --port 1025",
+		"build": "deno task sync && node ./node_modules/vite/bin/vite.js build",
+		"preview": "node ./node_modules/vite/bin/vite.js preview --port 1025",
+		"sync": "deno run -A npm:@sveltejs/kit/svelte-kit sync",
+		"check": "deno task sync && node ./node_modules/svelte-check/bin/svelte-check --tsconfig ./tsconfig.json",
+		"check:watch": "deno task sync && node ./node_modules/svelte-check/bin/svelte-check --tsconfig ./tsconfig.json --watch",
+		"lint": "deno run -A npm:prettier --check . && deno run -A npm:eslint .",
+		"format": "deno run -A npm:prettier --write .",
+		"test:unit": "node ./node_modules/vitest/vitest.mjs",
+		"test:e2e": "deno run -A npm:@playwright/test test",
+		"test": "deno task test:unit -- --run && deno task test:e2e",
+		"db:push": "deno run -A --env-file=.env npm:drizzle-kit push",
+		"db:push:force": "deno run -A --env-file=.env npm:drizzle-kit push --force",
+		"db:generate": "deno run -A --env-file=.env npm:drizzle-kit generate",
+		"db:migrate": "deno run -A --env-file=.env npm:drizzle-kit migrate",
+		"db:studio": "deno run -A --env-file=.env npm:drizzle-kit studio",
+		"auth:schema": "deno run -A npm:@better-auth/cli generate --config src/lib/server/auth.ts --output src/lib/server/db/auth.schema.ts --yes"
+	}
+}
