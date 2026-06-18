@@ -23,6 +23,8 @@ primary_region = 'sin'
 #   fly secrets set ORIGIN=https://your-app.fly.dev
 [env]
   PORT = '1025'
+  BODY_SIZE_LIMIT = '100M'
+  LOCAL_DRIVE_DATA_DIR = '/data/znl-drive'
   PROTOCOL_HEADER = 'x-forwarded-proto'
   HOST_HEADER = 'x-forwarded-host'
 

@@ -6,6 +6,7 @@ import { readStoredBlob } from '$lib/server/drive-load';
 import { canAccessSharedItem, sharedRootIdsForRecipient } from '$lib/server/drive-shared-access';
 import { db } from '$lib/server/db';
 import { MainFileSchema, MainFileShareSchema } from '$lib/server/db/schema/main-schema/main.schema';
+import { effectiveContentType } from '$lib/tool/mime-kind';
 import { error } from '@sveltejs/kit';
 import { and, eq, isNull } from 'drizzle-orm';
 import type { RequestHandler } from './$types';
@@ -94,7 +95,7 @@ export const GET: RequestHandler = async ({ request, params }) => {
 
 	return new Response(new Uint8Array(body), {
 		headers: {
-			'Content-Type': row.mimeType || 'application/octet-stream',
+			'Content-Type': effectiveContentType(row.mimeType, row.name),
 			'Content-Disposition': contentDisposition(row.name),
 			'Content-Length': String(body.length),
 			'Cache-Control': 'private, no-store'

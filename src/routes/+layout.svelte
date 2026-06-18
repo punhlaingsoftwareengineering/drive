@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
+	import { appName } from '$lib/app-name';
 	import { locales, localizeHref } from '$lib/paraglide/runtime';
 	import './layout.css';
 	import Favicon from '$lib/asset/favicon.svg';
@@ -10,7 +11,7 @@
 
 <svelte:head>
 	<link rel="icon" type="image/x-icon" href={Favicon} />
-	<title>ZNL-DRIVE</title>
+	<title>{appName()}</title>
 </svelte:head>
 {@render children()}
 

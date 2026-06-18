@@ -2,6 +2,7 @@
 	import { browser } from '$app/environment';
 	import { invalidateAll } from '$app/navigation';
 	import SettingsSearchHighlight from '$lib/components/settings-search-highlight.svelte';
+	import { appName } from '$lib/app-name';
 	import { fetchWithSession } from '$lib/client/fetch-session';
 	import { resolveHref } from '$lib/url/resolve-href';
 	import { StatusColorEnum } from '$lib/model/enum/color.enum';
@@ -35,6 +36,14 @@
 		appVersion?: string;
 		developerModeEnabled?: boolean;
 	} = $props();
+
+	const brand = $derived(appName());
+	const aboutText = $derived(
+		`${brand} is your personal cloud workspace for files, sharing, and storage.`
+	);
+	const developerText = $derived(
+		`Turn on developer mode to create API keys. Each key is tied to an app name and acts as that user for ${brand} HTTP APIs (same access as your logged-in session to your files).`
+	);
 
 	let dialogEl = $state<HTMLDialogElement | null>(null);
 	let dialogIsOpen = $state(false);
@@ -253,10 +262,7 @@
 					</h3>
 					<div class="max-w-xl space-y-4 text-sm leading-relaxed text-base-content/80">
 						<p>
-							<SettingsSearchHighlight
-								text="ZNL-DRIVE is your personal cloud workspace for files, sharing, and storage."
-								query={profileSearch}
-							/>
+							<SettingsSearchHighlight text={aboutText} query={profileSearch} />
 						</p>
 						<p>
 							<span class="text-base-content/60">Version </span>
@@ -289,10 +295,7 @@
 					</h3>
 					<div class="max-w-2xl space-y-5 text-sm leading-relaxed">
 						<p class="text-base-content/80">
-							<SettingsSearchHighlight
-								text="Turn on developer mode to create API keys. Each key is tied to an app name and acts as that user for ZNL-DRIVE HTTP APIs (same access as your logged-in session to your files)."
-								query={profileSearch}
-							/>
+							<SettingsSearchHighlight text={developerText} query={profileSearch} />
 						</p>
 
 						<div class="flex flex-wrap items-center gap-3">

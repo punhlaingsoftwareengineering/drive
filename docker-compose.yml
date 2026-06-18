@@ -5,11 +5,19 @@ services:
       - '1025:1025'
     environment:
       ORIGIN: ${ORIGIN:-http://localhost:1025}
+      PUBLIC_APP_NAME: ${PUBLIC_APP_NAME:-ZNL-DRIVE}
       PORT: '1025'
+      BODY_SIZE_LIMIT: 100M
+      LOCAL_DRIVE_DATA_DIR: /data/znl-drive
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
       DATABASE_URL: ${DATABASE_URL}
     env_file:
       - .env
+    volumes:
+      - drive-data:/data/znl-drive
+
+volumes:
+  drive-data:
 
 # For HTTPS on a LAN or cloud VM, put a reverse proxy in front and forward headers.
 # Example nginx location block (uncomment and add an nginx service if needed):

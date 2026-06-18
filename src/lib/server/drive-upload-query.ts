@@ -1,5 +1,6 @@
 import { isTeamMember } from '$lib/server/team-access';
 import { STORAGE_PROVIDERS, type StorageProviderId } from '$lib/model/storage-provider';
+import { normalizeUploadMime } from '$lib/tool/mime-kind';
 import { error } from '@sveltejs/kit';
 import { z } from 'zod';
 
@@ -62,9 +63,10 @@ export async function parseChunkUploadQuery(
 	if (chunkIndex === 0) {
 		const parentId = parseOptionalUuid(url.searchParams.get('parentId'), 'parent folder');
 		const teamId = await parseOptionalTeamId(userId, url.searchParams.get('teamId'));
+		const fileName = url.searchParams.get('fileName')?.trim() || 'unnamed';
 		init = {
-			fileName: url.searchParams.get('fileName')?.trim() || 'unnamed',
-			mimeType: url.searchParams.get('mimeType')?.trim() || 'application/octet-stream',
+			fileName,
+			mimeType: normalizeUploadMime(fileName, url.searchParams.get('mimeType')),
 			storageProvider: parseStorageProvider(url.searchParams.get('storageProvider')),
 			parentId,
 			teamId
@@ -95,7 +97,7 @@ export async function parseSimpleUploadQuery(
 		parentId,
 		teamId,
 		fileName,
-		mimeType: url.searchParams.get('mimeType')?.trim() || 'application/octet-stream'
+		mimeType: normalizeUploadMime(fileName, url.searchParams.get('mimeType'))
 	};
 }
 

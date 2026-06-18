@@ -14,9 +14,12 @@ const FLAG_ENC = 0x02;
 const FLAG_BROTLI = 0x04;
 
 function getKey(): Buffer {
-	const secret = env.DRIVE_ENCRYPTION_KEY ?? env.BETTER_AUTH_SECRET;
+	const secret =
+		env.DRIVE_ENCRYPTION_KEY ?? env.FILE_ENCRYPTION_KEY ?? env.BETTER_AUTH_SECRET;
 	if (!secret) {
-		throw new Error('Set DRIVE_ENCRYPTION_KEY or BETTER_AUTH_SECRET for at-rest file encryption');
+		throw new Error(
+			'Set DRIVE_ENCRYPTION_KEY, FILE_ENCRYPTION_KEY, or BETTER_AUTH_SECRET for at-rest file encryption'
+		);
 	}
 	return scryptSync(secret, Buffer.from('znl-drive-file-v1', 'utf8'), 32);
 }

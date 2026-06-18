@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { appName, appTitle } from '$lib/app-name';
 	import { localizeHref } from '$lib/paraglide/runtime';
 	import {
 		LucideBookOpen,
@@ -44,7 +45,7 @@
 </script>
 
 <svelte:head>
-	<title>Contribute · Documentation · ZNL-DRIVE</title>
+	<title>{appTitle('Contribute · Documentation')}</title>
 	<meta
 		name="description"
 		content="Run the project locally: stack, repo layout, env, workflows, architecture."

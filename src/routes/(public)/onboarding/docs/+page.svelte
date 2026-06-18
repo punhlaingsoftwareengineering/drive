@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { appName, appTitle } from '$lib/app-name';
 	import { localizeHref } from '$lib/paraglide/runtime';
 	import {
 		LucideBookOpen,
@@ -10,10 +11,10 @@
 </script>
 
 <svelte:head>
-	<title>Documentation · ZNL-DRIVE</title>
+	<title>{appTitle('Documentation')}</title>
 	<meta
 		name="description"
-		content="User manual, developer API reference, and contributor guide for ZNL-DRIVE."
+		content="User manual, developer API reference, and contributor guide for {appName()}."
 	/>
 </svelte:head>
 
@@ -21,7 +22,7 @@
 	<div class="mb-10">
 		<h1 class="mb-3 text-3xl font-bold tracking-tight text-base-content">Documentation</h1>
 		<p class="text-lg leading-relaxed text-base-content/70">
-			Everything you need to use ZNL-DRIVE effectively, integrate with the HTTP API, or contribute
+			Everything you need to use {appName()} effectively, integrate with the HTTP API, or contribute
 			to the codebase.
 		</p>
 	</div>

@@ -8,6 +8,7 @@
 	import { page } from '$app/state';
 	import { daisyDropdown } from '$lib/actions/daisy-dropdown';
 	import { uploadFilesWithProgress } from '$lib/client/upload-drive';
+	import { appName } from '$lib/app-name';
 	import { StatusColorEnum } from '$lib/model/enum/color.enum';
 	import {
 		STORAGE_PROVIDERS,
@@ -435,7 +436,7 @@
 <div class="my-app flex min-h-screen flex-col">
 	<div class="d-navbar bg-base-100 shadow-sm">
 		<div class="d-navbar-start">
-			<a class="d-btn text-xl d-btn-ghost" href={resolve('/home')}>ZNL-DRIVE</a>
+			<a class="d-btn text-xl d-btn-ghost" href={resolve('/home')}>{appName()}</a>
 		</div>
 		<div class="d-navbar-end gap-3 sm:gap-4">
 			<a

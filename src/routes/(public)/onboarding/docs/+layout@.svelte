@@ -3,6 +3,7 @@
 	import { afterNavigate } from '$app/navigation';
 	import { page } from '$app/state';
 	import { enhanceDocsMermaid } from '$lib/docs/mermaid-docs';
+	import { appName, appTitle } from '$lib/app-name';
 	import {
 		DOCS_ROOT,
 		docsCanonicalPath,
@@ -32,10 +33,10 @@
 </script>
 
 <svelte:head>
-	<title>Documentation · ZNL-DRIVE</title>
+	<title>{appTitle('Documentation')}</title>
 	<meta
 		name="description"
-		content="ZNL-DRIVE user manual, developer API reference, and contributor guide."
+		content="{appName()} user manual, developer API reference, and contributor guide."
 	/>
 </svelte:head>
 
@@ -50,7 +51,7 @@
 			</div>
 			<div class="flex flex-1 items-center gap-2 px-2">
 				<a href={localizeHref('/onboarding')} class="d-btn px-2 text-lg font-semibold d-btn-ghost">
-					ZNL-DRIVE
+					{appName()}
 				</a>
 				<span class="hidden text-base-content/40 sm:inline">/</span>
 				<span class="flex items-center gap-1 text-sm font-medium text-base-content/80">
@@ -100,7 +101,7 @@
 			<footer
 				class="mt-auto border-t border-base-200 px-4 py-6 text-center text-xs text-base-content/50 lg:px-8"
 			>
-				ZNL-DRIVE documentation — DaisyUI + Tailwind Typography
+				{appName()} documentation — DaisyUI + Tailwind Typography
 			</footer>
 		</main>
 	</div>

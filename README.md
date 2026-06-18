@@ -104,13 +104,16 @@ This repo ships with a Dockerfile, optional `docker-compose.yml`, and Fly.io con
 ```bash
 docker build -t znl-drive .
 docker run -p 1025:1025 \
+  -v drive-data:/data/znl-drive \
   -e ORIGIN=http://YOUR_HOST:1025 \
   -e BETTER_AUTH_SECRET=... \
   -e DATABASE_URL='postgresql://...' \
   znl-drive
 ```
 
-Or with compose:
+The image sets `BODY_SIZE_LIMIT=100M` and `LOCAL_DRIVE_DATA_DIR=/data/znl-drive`. Mount a volume at `/data/znl-drive` when using **Local** storage so uploads survive container restarts.
+
+Or with compose (includes the volume automatically):
 
 ```bash
 docker compose up --build

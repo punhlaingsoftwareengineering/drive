@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
+	import { appName, appTitle } from '$lib/app-name';
 	import {
 		LucideBuilding2,
 		LucideCheck,
@@ -99,10 +100,10 @@
 </script>
 
 <svelte:head>
-	<title>Pricing | ZNL-DRIVE</title>
+	<title>{appTitle('Pricing', ' | ')}</title>
 	<meta
 		name="description"
-		content="ZNL-DRIVE plans: Free, Starter, and Professional storage for local and Tigris. Pay as you go and enterprise quotes available."
+		content="{appName()} plans: Free, Starter, and Professional storage for local and Tigris. Pay as you go and enterprise quotes available."
 	/>
 </svelte:head>
 

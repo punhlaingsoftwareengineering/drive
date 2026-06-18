@@ -20,7 +20,11 @@ WORKDIR /app
 
 ENV NODE_ENV=production \
     HOST=0.0.0.0 \
-    PORT=1025
+    PORT=1025 \
+    BODY_SIZE_LIMIT=100M \
+    LOCAL_DRIVE_DATA_DIR=/data/znl-drive
+
+RUN mkdir -p /data/znl-drive
 
 COPY --from=builder /app/build ./build
 COPY --from=builder /app/package.json ./

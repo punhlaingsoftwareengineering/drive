@@ -4,7 +4,7 @@
 
 In **Home**, open the **NEW** menu in the sidebar and choose **Upload file**. A dialog lets you pick one or more files; uploads run against the **storage provider** currently selected in the top bar.
 
-Large uploads may use chunked upload endpoints on the server; progress is shown in the dialog. If an upload fails, the toast shows the error message from the API.
+Large uploads may use chunked upload endpoints on the server; progress is shown in the dialog. All file types are accepted — MIME is inferred from the filename when the browser sends an empty type. If an upload fails, the toast shows the JSON error message from the API.
 
 ## Downloads
 

@@ -1,4 +1,5 @@
 import { appendChunk, readAssembled, removeSession } from '$lib/server/drive-upload-chunk-store';
+import { throwMappedUploadError } from '$lib/server/drive-upload-errors';
 import { parseChunkUploadQuery, readUploadBody } from '$lib/server/drive-upload-query';
 import { persistSealedUpload } from '$lib/server/drive-upload-persist';
 import { requireApiSession } from '$lib/server/require-api-session';
@@ -49,16 +50,14 @@ export const POST: RequestHandler = async ({ request, url }) => {
 
 		return json({ ok: true, done: true, uploadId: sid, created: [created] });
 	} catch (e) {
-		const msg = e instanceof Error ? e.message : 'Chunk upload failed';
-		if (
-			msg.includes('Invalid chunk') ||
-			msg.includes('session') ||
-			msg.includes('Expected chunk')
-		) {
-			throw error(400, msg);
-		}
-		if (msg.includes('too large')) throw error(413, msg);
-		console.error('[drive/upload/chunk]', e);
-		throw error(500, msg);
+		throwMappedUploadError(e, {
+			route: 'drive/upload/chunk',
+			userId,
+			storageProvider: init?.storageProvider,
+			fileName: init?.fileName,
+			bytes: buf.length,
+			parentId: init?.parentId,
+			teamId: init?.teamId
+		});
 	}
 };

@@ -15,6 +15,19 @@ function uploadQuery(params: Record<string, string | number | undefined | null>)
 	return encoded ? `?${encoded}` : '';
 }
 
+function uploadErrorMessage(status: number, responseText: string): string {
+	if (!responseText.trim()) return `Upload failed (${status})`;
+	try {
+		const parsed = JSON.parse(responseText) as { message?: string };
+		if (typeof parsed.message === 'string' && parsed.message.trim()) {
+			return parsed.message;
+		}
+	} catch {
+		// not JSON
+	}
+	return responseText;
+}
+
 function postBinary(
 	pathWithQuery: string,
 	body: Blob,
@@ -35,7 +48,7 @@ function postBinary(
 				resolve(xhr.responseText || '{}');
 				return;
 			}
-			reject(new Error(xhr.responseText || `Upload failed (${xhr.status})`));
+			reject(new Error(uploadErrorMessage(xhr.status, xhr.responseText)));
 		});
 		xhr.addEventListener('error', () => reject(new Error('Network error')));
 		xhr.open('POST', resolveAppPath(pathWithQuery));

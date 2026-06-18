@@ -1,5 +1,7 @@
+import { assertParentFolderStorageProvider } from '$lib/server/drive-parent-provider';
 import { resolveParentFolderForTeam } from '$lib/server/drive-parent-team';
 import { resolveParentFolderForUser } from '$lib/server/drive-parent';
+import { normalizeUploadMime } from '$lib/tool/mime-kind';
 import {
 	localPathNewFileAtRoot,
 	localPathNewFileInsideFolder,
@@ -19,8 +21,15 @@ import { randomUUID } from 'node:crypto';
 const MAX_BYTES = 100 * 1024 * 1024;
 
 export function safeUploadFileName(name: string): string {
-	const trimmed = name.trim().replace(/[/\\]/g, '_');
-	return trimmed.slice(0, 220) || 'unnamed';
+	const normalized = name
+		.normalize('NFKC')
+		.replace(/[\0-\x1f\x7f]/g, '')
+		.trim()
+		.replace(/[/\\]/g, '_');
+	const match = /^(.*?)(\.[^.]+)?$/.exec(normalized);
+	const base = (match?.[1] ?? normalized).slice(0, 200) || 'unnamed';
+	const ext = match?.[2] ?? '';
+	return (base + ext).slice(0, 220);
 }
 
 export async function persistSealedUpload(
@@ -38,11 +47,26 @@ export async function persistSealedUpload(
 
 	const sealed = sealFileBuffer(plain);
 	const teamId = opts?.teamId ?? null;
+	const name = safeUploadFileName(originalFileName);
+	const mime = normalizeUploadMime(name, mimeType);
+
+	if (teamId) {
+		await assertParentFolderStorageProvider(provider, parentIdRaw, {
+			kind: 'team',
+			teamId,
+			memberUserId: userId
+		});
+	} else {
+		await assertParentFolderStorageProvider(provider, parentIdRaw, {
+			kind: 'user',
+			ownerId: userId
+		});
+	}
+
 	const parentFolder = teamId
 		? await resolveParentFolderForTeam(userId, teamId, provider, parentIdRaw)
 		: await resolveParentFolderForUser(userId, provider, parentIdRaw);
 	const id = randomUUID();
-	const name = safeUploadFileName(originalFileName);
 	const stored = sealed.buffer;
 
 	const baseInsert = {
@@ -52,7 +76,7 @@ export async function persistSealedUpload(
 		parentId: parentFolder?.id ?? null,
 		itemType: 'file' as const,
 		name,
-		mimeType,
+		mimeType: mime,
 		sizeBytes: sealed.originalSize,
 		isPinned: false,
 		isStarred: false,

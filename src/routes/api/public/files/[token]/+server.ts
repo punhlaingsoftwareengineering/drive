@@ -2,6 +2,7 @@ import { buildFolderZipBuffer } from '$lib/server/drive-folder-zip';
 import { readStoredBlob } from '$lib/server/drive-load';
 import { openFileBuffer } from '$lib/server/drive-seal';
 import { fileLooksLikeImage, guessImageMimeFromFileName } from '$lib/tool/image-kind';
+import { effectiveContentType } from '$lib/tool/mime-kind';
 import { db } from '$lib/server/db';
 import {
 	MainFilePublicLinkSchema,
@@ -97,7 +98,7 @@ export const GET: RequestHandler = async ({ params }) => {
 
 	// Inline for images so the raw URL works in <img src="...">. Otherwise serve as attachment.
 	const inline = fileLooksLikeImage(row.mimeType, row.name);
-	let contentType = row.mimeType || 'application/octet-stream';
+	let contentType = effectiveContentType(row.mimeType, row.name);
 	if (inline && !contentType.startsWith('image/')) {
 		const guessed = guessImageMimeFromFileName(row.name);
 		if (guessed) contentType = guessed;

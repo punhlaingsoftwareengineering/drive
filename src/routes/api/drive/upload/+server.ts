@@ -1,4 +1,5 @@
-import { persistSealedUpload, safeUploadFileName } from '$lib/server/drive-upload-persist';
+import { throwMappedUploadError } from '$lib/server/drive-upload-errors';
+import { persistSealedUpload } from '$lib/server/drive-upload-persist';
 import { parseSimpleUploadQuery, readUploadBody } from '$lib/server/drive-upload-query';
 import { requireApiSession } from '$lib/server/require-api-session';
 import { error, json } from '@sveltejs/kit';
@@ -27,14 +28,20 @@ export const POST: RequestHandler = async ({ request, url }) => {
 			meta.storageProvider,
 			meta.parentId,
 			plain,
-			safeUploadFileName(meta.fileName),
+			meta.fileName,
 			meta.mimeType,
 			meta.teamId ? { teamId: meta.teamId } : undefined
 		);
 		return json({ ok: true, created: [row] });
 	} catch (e) {
-		const msg = e instanceof Error ? e.message : 'Upload failed';
-		console.error('[drive/upload]', e);
-		throw error(500, msg);
+		throwMappedUploadError(e, {
+			route: 'drive/upload',
+			userId,
+			storageProvider: meta.storageProvider,
+			fileName: meta.fileName,
+			bytes: plain.length,
+			parentId: meta.parentId,
+			teamId: meta.teamId
+		});
 	}
 };

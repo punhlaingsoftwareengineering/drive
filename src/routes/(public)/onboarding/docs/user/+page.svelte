@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { appName, appTitle } from '$lib/app-name';
 	import { localizeHref } from '$lib/paraglide/runtime';
 	import {
 		LucideFolderOpen,
@@ -63,17 +64,17 @@
 </script>
 
 <svelte:head>
-	<title>User manual · Documentation · ZNL-DRIVE</title>
+	<title>{appTitle('User manual · Documentation')}</title>
 	<meta
 		name="description"
-		content="How to use ZNL-DRIVE: home, teams, files, sharing, trash, public links, and settings."
+		content="How to use {appName()}: home, teams, files, sharing, trash, public links, and settings."
 	/>
 </svelte:head>
 
 <div class="not-prose mx-auto max-w-4xl">
 	<h1 class="mb-2 text-3xl font-bold text-base-content">User manual</h1>
 	<p class="mb-10 text-lg text-base-content/70">
-		Learn how to use ZNL-DRIVE day to day: organize files, collaborate, and tune the app to your
+		Learn how to use {appName()} day to day: organize files, collaborate, and tune the app to your
 		preferences.
 	</p>
 

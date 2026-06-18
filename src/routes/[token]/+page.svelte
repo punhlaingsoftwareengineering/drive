@@ -2,6 +2,7 @@
 	import { browser } from '$app/environment';
 	import { resolve } from '$app/paths';
 	import { resolveHref } from '$lib/url/resolve-href';
+	import { appName } from '$lib/app-name';
 	import { formatBytes } from '$lib/tool/format-bytes';
 	import { fileLooksLikeImage } from '$lib/tool/image-kind';
 	import type { PageData } from './$types';
@@ -96,7 +97,7 @@
 
 				<div class="flex flex-wrap items-center gap-2">
 					<a class="d-btn d-btn-primary" href={rawUrl}>Download</a>
-					<a class="d-btn d-btn-ghost" href={resolve('/(public)/onboarding')}>Back to ZNL-DRIVE</a>
+					<a class="d-btn d-btn-ghost" href={resolve('/(public)/onboarding')}>Back to {appName()}</a>
 				</div>
 			{/if}
 		</div>

@@ -1,9 +1,10 @@
 <script lang="ts">
+	import { appTitle } from '$lib/app-name';
 	let { children } = $props();
 </script>
 
 <svelte:head>
-	<title>Auth | ZNL-DRIVE</title>
+	<title>{appTitle('Auth', ' | ')}</title>
 </svelte:head>
 
 <div class="my-app my-dotted-background-teal">

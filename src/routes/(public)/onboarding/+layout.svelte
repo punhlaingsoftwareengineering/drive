@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { daisyDropdown } from '$lib/actions/daisy-dropdown';
+	import { appName, appTitle } from '$lib/app-name';
 	import { LucideCircleUser, LucideCloudUpload, LucideMenu } from '@lucide/svelte';
 	import { resolve } from '$app/paths';
 	import { localizeHref } from '$lib/paraglide/runtime';
@@ -9,7 +10,7 @@
 </script>
 
 <svelte:head>
-	<title>Onboarding | ZNL-DRIVE</title>
+	<title>{appTitle('Onboarding', ' | ')}</title>
 </svelte:head>
 
 <div class="my-web">
@@ -31,7 +32,7 @@
 					<li><a href={resolve('/(public)/onboarding/pricing')}>Pricing</a></li>
 				</ul>
 			</div>
-			<a class="d-btn text-xl d-btn-ghost" href={resolve('/(public)/onboarding')}>ZNL-DRIVE</a>
+			<a class="d-btn text-xl d-btn-ghost" href={resolve('/(public)/onboarding')}>{appName()}</a>
 		</div>
 		<div class="d-navbar-center hidden lg:flex">
 			<ul class="d-menu d-menu-horizontal gap-5 px-1">
@@ -54,7 +55,7 @@
 	<footer class="d-footer-center d-footer d-footer-horizontal bg-primary p-10 text-primary-content">
 		<aside>
 			<LucideCloudUpload class="size-24 text-[#DE1A58]" />
-			<p class="font-bold">ZNL-DRIVE</p>
+			<p class="font-bold">{appName()}</p>
 			<p>Copyright © {new Date().getFullYear()} - All right reserved</p>
 		</aside>
 		<nav>

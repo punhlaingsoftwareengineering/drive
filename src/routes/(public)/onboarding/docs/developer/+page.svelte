@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { appName, appTitle } from '$lib/app-name';
 	import { localizeHref } from '$lib/paraglide/runtime';
 	import { LucideKeyRound, LucideListTree, LucideTriangleAlert } from '@lucide/svelte';
 
@@ -25,17 +26,17 @@
 </script>
 
 <svelte:head>
-	<title>Developer · Documentation · ZNL-DRIVE</title>
+	<title>{appTitle('Developer · Documentation')}</title>
 	<meta
 		name="description"
-		content="Authentication, REST API catalog, and errors for ZNL-DRIVE integrations."
+		content="Authentication, REST API catalog, and errors for {appName()} integrations."
 	/>
 </svelte:head>
 
 <div class="not-prose mx-auto max-w-4xl">
 	<h1 class="mb-2 text-3xl font-bold text-base-content">Developer</h1>
 	<p class="mb-10 text-lg text-base-content/70">
-		Integrate with ZNL-DRIVE over HTTP: authenticate like the web app or with a developer API key,
+		Integrate with {appName()} over HTTP: authenticate like the web app or with a developer API key,
 		then call the drive JSON and binary endpoints.
 	</p>
 
