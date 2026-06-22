@@ -1,4 +1,5 @@
 import { db } from '$lib/server/db';
+import { sizeBytesJson } from '$lib/server/drive-size-json';
 import {
 	MainFilePublicLinkSchema,
 	MainFileSchema
@@ -51,7 +52,7 @@ export const GET: RequestHandler = async ({ params }) => {
 			itemType: row.itemType,
 			name: row.name,
 			mimeType: row.mimeType,
-			sizeBytes: row.sizeBytes,
+			sizeBytes: sizeBytesJson(row.sizeBytes),
 			updatedAt: row.updatedAt.toISOString(),
 			storageProvider: row.storageProvider
 		}

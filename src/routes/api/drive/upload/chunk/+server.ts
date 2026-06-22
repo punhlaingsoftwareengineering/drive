@@ -1,12 +1,11 @@
-import { appendChunk, readAssembled, removeSession } from '$lib/server/drive-upload-chunk-store';
+import { assembledPath, assembledSize, appendChunk, removeSession } from '$lib/server/drive-upload-chunk-store';
 import { throwMappedUploadError } from '$lib/server/drive-upload-errors';
+import { assertWithinUploadLimit } from '$lib/server/drive-upload-limits';
+import { persistSealedUploadFromPath } from '$lib/server/drive-upload-persist';
 import { parseChunkUploadQuery, readUploadBody } from '$lib/server/drive-upload-query';
-import { persistSealedUpload } from '$lib/server/drive-upload-persist';
 import { requireApiSession } from '$lib/server/require-api-session';
-import { error, json } from '@sveltejs/kit';
+import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-
-const MAX_BYTES = 100 * 1024 * 1024;
 
 export const POST: RequestHandler = async ({ request, url }) => {
 	const session = await requireApiSession(request);
@@ -30,23 +29,21 @@ export const POST: RequestHandler = async ({ request, url }) => {
 			return json({ uploadId: sid, done: false });
 		}
 
-		const plain = await readAssembled(userId, sid);
-		await removeSession(userId, sid);
+		const size = await assembledSize(userId, sid);
+		assertWithinUploadLimit(size);
 
-		if (plain.length > MAX_BYTES) {
-			throw error(413, 'File too large');
-		}
-
-		const teamId = 'teamId' in meta && meta.teamId != null ? meta.teamId : null;
-		const created = await persistSealedUpload(
+		const teamId = meta.teamId ?? null;
+		const created = await persistSealedUploadFromPath(
 			userId,
 			meta.storageProvider,
 			meta.parentId,
-			plain,
+			assembledPath(userId, sid),
 			meta.fileName,
 			meta.mimeType,
 			teamId ? { teamId } : undefined
 		);
+
+		await removeSession(userId, sid);
 
 		return json({ ok: true, done: true, uploadId: sid, created: [created] });
 	} catch (e) {

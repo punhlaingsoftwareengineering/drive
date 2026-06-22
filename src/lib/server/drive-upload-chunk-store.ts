@@ -1,6 +1,6 @@
-import { localUserUploadDir } from '$lib/server/local-drive-path';
+import { localDriveDataRoot } from '$lib/server/local-drive-path';
 import type { StorageProviderId } from '$lib/model/storage-provider';
-import { appendFile, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { appendFile, mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 
@@ -15,15 +15,25 @@ export type ChunkUploadMeta = {
 };
 
 function sessionDir(userId: string, uploadId: string) {
-	return join(localUserUploadDir(userId), '.upload-parts', uploadId);
+	return join(localDriveDataRoot(), '.upload-sessions', userId, uploadId);
 }
 
-export function dataPath(userId: string, uploadId: string) {
+export function assembledPath(userId: string, uploadId: string) {
 	return join(sessionDir(userId, uploadId), 'data.bin');
 }
 
 export function metaPath(userId: string, uploadId: string) {
 	return join(sessionDir(userId, uploadId), 'meta.json');
+}
+
+/** @deprecated Use assembledPath — kept for tests migrating from old layout. */
+export function dataPath(userId: string, uploadId: string) {
+	return assembledPath(userId, uploadId);
+}
+
+export async function assembledSize(userId: string, uploadId: string): Promise<number> {
+	const s = await stat(assembledPath(userId, uploadId));
+	return s.size;
 }
 
 export async function readMeta(userId: string, uploadId: string): Promise<ChunkUploadMeta | null> {
@@ -72,7 +82,7 @@ export async function appendChunk(
 			nextChunkIndex: 0
 		};
 		await writeFile(metaPath(userId, id), JSON.stringify(meta), 'utf8');
-		await writeFile(dataPath(userId, id), chunk);
+		await writeFile(assembledPath(userId, id), chunk);
 		meta.nextChunkIndex = 1;
 		await writeFile(metaPath(userId, id), JSON.stringify(meta), 'utf8');
 		return { uploadId: id, meta };
@@ -90,17 +100,18 @@ export async function appendChunk(
 	}
 
 	if (chunkIndex === 0) {
-		await writeFile(dataPath(userId, id), chunk);
+		await writeFile(assembledPath(userId, id), chunk);
 	} else {
-		await appendFile(dataPath(userId, id), chunk);
+		await appendFile(assembledPath(userId, id), chunk);
 	}
 	meta.nextChunkIndex = chunkIndex + 1;
 	await writeFile(metaPath(userId, id), JSON.stringify(meta), 'utf8');
 	return { uploadId: id, meta };
 }
 
+/** Prefer assembledPath + persistSealedUploadFromPath for large files. */
 export async function readAssembled(userId: string, uploadId: string): Promise<Buffer> {
-	return readFile(dataPath(userId, uploadId));
+	return readFile(assembledPath(userId, uploadId));
 }
 
 export async function removeSession(userId: string, uploadId: string): Promise<void> {

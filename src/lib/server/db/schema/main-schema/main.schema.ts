@@ -1,6 +1,7 @@
 import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 import {
 	boolean,
+	bigint,
 	index,
 	integer,
 	pgTable,
@@ -30,7 +31,7 @@ export const MainFileSchema = pgTable('main_file', {
 	path: text('path').notNull(),
 	name: text('name').notNull(),
 	mimeType: text('mime_type').notNull(),
-	sizeBytes: integer('size_bytes').notNull(),
+	sizeBytes: bigint('size_bytes', { mode: 'bigint' }).notNull(),
 	/** Postgres enum `master_storage_provider` — ties each object to a backend (local vs Tigris, etc.). */
 	storageProvider: MasterStorageProviderSchema('storage_provider').notNull().default('local'),
 	isEncrypted: boolean('is_encrypted').notNull().default(true),

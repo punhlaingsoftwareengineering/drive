@@ -1,4 +1,5 @@
 import { canAccessSharedItem, sharedRootIdsForRecipient } from '$lib/server/drive-shared-access';
+import { sizeBytesJson } from '$lib/server/drive-size-json';
 import { requireApiSession } from '$lib/server/require-api-session';
 import { sumSubtreeFileBytesForFolderRows } from '$lib/server/drive-folder-size';
 import { db } from '$lib/server/db';
@@ -101,7 +102,10 @@ export const GET: RequestHandler = async ({ request, url }) => {
 				id: r.id,
 				name: r.name,
 				itemType: r.itemType,
-				sizeBytes: r.itemType === 'folder' ? (subtreeBytes.get(r.id) ?? 0) : r.sizeBytes,
+				sizeBytes:
+					r.itemType === 'folder'
+						? (subtreeBytes.get(r.id) ?? 0)
+						: sizeBytesJson(r.sizeBytes),
 				updatedAt: r.updatedAt.toISOString(),
 				storageProvider: r.storageProvider,
 				isPinned: r.isPinned,
@@ -156,7 +160,10 @@ export const GET: RequestHandler = async ({ request, url }) => {
 			id: r.id,
 			name: r.name,
 			itemType: r.itemType,
-			sizeBytes: r.itemType === 'folder' ? (subtreeBytes.get(r.id) ?? 0) : r.sizeBytes,
+			sizeBytes:
+				r.itemType === 'folder'
+					? (subtreeBytes.get(r.id) ?? 0)
+					: sizeBytesJson(r.sizeBytes),
 			updatedAt: r.updatedAt.toISOString(),
 			storageProvider: r.storageProvider,
 			isPinned: r.isPinned,

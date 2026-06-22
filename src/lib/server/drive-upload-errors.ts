@@ -56,6 +56,16 @@ export function throwMappedUploadError(e: unknown, ctx: UploadErrorContext): nev
 		throw error(413, msg);
 	}
 
+	if (hasCode(e, 'ENOMEM')) {
+		console.error(`[${ctx.route}] out of memory`, ctx, e);
+		throw error(507, 'Server ran out of memory while processing the upload');
+	}
+
+	if (hasCode(e, 'ENOSPC')) {
+		console.error(`[${ctx.route}] disk full`, ctx, e);
+		throw error(507, 'Storage disk is full. Free space or expand the volume.');
+	}
+
 	console.error(`[${ctx.route}]`, ctx, e);
 	throw error(500, msg);
 }

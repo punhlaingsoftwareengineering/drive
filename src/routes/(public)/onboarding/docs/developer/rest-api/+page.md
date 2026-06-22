@@ -25,8 +25,8 @@ This table reflects handlers under `src/routes/api` as of the current codebase. 
 | `GET`    | `/api/drive/shared`                 | Cookie or API key      | List shared-with-me content.                                        |
 | `GET`    | `/api/drive/trash`                  | Cookie or API key      | List trashed items.                                                 |
 | `GET`    | `/api/drive/stats`                  | Cookie or API key      | Storage / usage stats.                                              |
-| `POST`   | `/api/drive/upload`                 | Cookie or API key      | Upload file (binary `application/octet-stream`, metadata in query; max 100 MiB with `BODY_SIZE_LIMIT`). |
-| `POST`   | `/api/drive/upload/chunk`           | Cookie or API key      | Chunked binary upload part (1 MiB chunks; metadata in query).                         |
+| `POST`   | `/api/drive/upload`                 | Cookie or API key      | Upload file (binary `application/octet-stream`, metadata in query; files ≤ 8 MiB). |
+| `POST`   | `/api/drive/upload/chunk`           | Cookie or API key      | Chunked binary upload (8 MiB chunks; `MAX_UPLOAD_BYTES=0` = unlimited total size). |
 | `GET`    | `/api/developer/mode`               | Cookie only            | Read developer mode enabled flag.                                   |
 | `POST`   | `/api/developer/mode`               | Cookie only            | Set developer mode `{ "enabled": boolean }`.                        |
 | `GET`    | `/api/developer/api-keys`           | Cookie only            | List keys (masked `znldv_…`); `developerModeRequired` if off.       |

@@ -1,11 +1,10 @@
 import { throwMappedUploadError } from '$lib/server/drive-upload-errors';
+import { assertWithinUploadLimit } from '$lib/server/drive-upload-limits';
 import { persistSealedUpload } from '$lib/server/drive-upload-persist';
 import { parseSimpleUploadQuery, readUploadBody } from '$lib/server/drive-upload-query';
 import { requireApiSession } from '$lib/server/require-api-session';
-import { error, json } from '@sveltejs/kit';
+import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-
-const MAX_BYTES = 100 * 1024 * 1024;
 
 /**
  * Binary upload (small files). Large files use `POST /api/drive/upload/chunk`.
@@ -18,9 +17,7 @@ export const POST: RequestHandler = async ({ request, url }) => {
 	const meta = await parseSimpleUploadQuery(url, userId);
 	const plain = await readUploadBody(request);
 
-	if (plain.length > MAX_BYTES) {
-		throw error(413, `File too large: ${meta.fileName}`);
-	}
+	assertWithinUploadLimit(plain.length);
 
 	try {
 		const row = await persistSealedUpload(

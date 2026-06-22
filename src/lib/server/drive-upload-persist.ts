@@ -3,22 +3,27 @@ import { resolveParentFolderForTeam } from '$lib/server/drive-parent-team';
 import { resolveParentFolderForUser } from '$lib/server/drive-parent';
 import { normalizeUploadMime } from '$lib/tool/mime-kind';
 import {
+	assertWithinUploadLimit,
+	IN_MEMORY_SEAL_THRESHOLD_BYTES
+} from '$lib/server/drive-upload-limits';
+import {
 	localPathNewFileAtRoot,
 	localPathNewFileInsideFolder,
 	tigrisKeyNewFileAtRoot,
 	tigrisKeyNewFileAtRootTeam,
 	tigrisKeyNewFileInsideFolder
 } from '$lib/server/drive-storage-layout';
-import { sealFileBuffer } from '$lib/server/drive-seal';
+import { sealFileBuffer, sealFileStream } from '$lib/server/drive-seal';
 import { db } from '$lib/server/db';
 import { MainFileSchema } from '$lib/server/db/schema/main-schema/main.schema';
 import { localTeamUploadDir, localUserUploadDir } from '$lib/server/local-drive-path';
 import { TigrisUtil } from '$lib/service/tigris.service.svelte';
 import type { StorageProviderId } from '$lib/model/storage-provider';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { createReadStream } from 'node:fs';
+import { mkdir, readFile, stat, unlink, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
-
-const MAX_BYTES = 100 * 1024 * 1024;
+import { tmpdir } from 'node:os';
 
 export function safeUploadFileName(name: string): string {
 	const normalized = name
@@ -32,6 +37,39 @@ export function safeUploadFileName(name: string): string {
 	return (base + ext).slice(0, 220);
 }
 
+type PersistContext = {
+	userId: string;
+	provider: StorageProviderId;
+	parentIdRaw: unknown;
+	originalFileName: string;
+	mimeType: string;
+	teamId: string | null;
+};
+
+async function resolvePersistContext(ctx: PersistContext) {
+	const name = safeUploadFileName(ctx.originalFileName);
+	const mime = normalizeUploadMime(name, ctx.mimeType);
+
+	if (ctx.teamId) {
+		await assertParentFolderStorageProvider(ctx.provider, ctx.parentIdRaw, {
+			kind: 'team',
+			teamId: ctx.teamId,
+			memberUserId: ctx.userId
+		});
+	} else {
+		await assertParentFolderStorageProvider(ctx.provider, ctx.parentIdRaw, {
+			kind: 'user',
+			ownerId: ctx.userId
+		});
+	}
+
+	const parentFolder = ctx.teamId
+		? await resolveParentFolderForTeam(ctx.userId, ctx.teamId, ctx.provider, ctx.parentIdRaw)
+		: await resolveParentFolderForUser(ctx.userId, ctx.provider, ctx.parentIdRaw);
+
+	return { name, mime, parentFolder };
+}
+
 export async function persistSealedUpload(
 	userId: string,
 	provider: StorageProviderId,
@@ -41,33 +79,20 @@ export async function persistSealedUpload(
 	mimeType: string,
 	opts?: { teamId?: string | null }
 ): Promise<{ id: string; name: string }> {
-	if (plain.length > MAX_BYTES) {
-		throw new Error(`File too large (max ${MAX_BYTES} bytes)`);
-	}
+	assertWithinUploadLimit(plain.length);
 
-	const sealed = sealFileBuffer(plain);
 	const teamId = opts?.teamId ?? null;
-	const name = safeUploadFileName(originalFileName);
-	const mime = normalizeUploadMime(name, mimeType);
+	const { name, mime, parentFolder } = await resolvePersistContext({
+		userId,
+		provider,
+		parentIdRaw,
+		originalFileName,
+		mimeType,
+		teamId
+	});
 
-	if (teamId) {
-		await assertParentFolderStorageProvider(provider, parentIdRaw, {
-			kind: 'team',
-			teamId,
-			memberUserId: userId
-		});
-	} else {
-		await assertParentFolderStorageProvider(provider, parentIdRaw, {
-			kind: 'user',
-			ownerId: userId
-		});
-	}
-
-	const parentFolder = teamId
-		? await resolveParentFolderForTeam(userId, teamId, provider, parentIdRaw)
-		: await resolveParentFolderForUser(userId, provider, parentIdRaw);
+	const sealed = sealFileBuffer(plain, { mime });
 	const id = randomUUID();
-	const stored = sealed.buffer;
 
 	const baseInsert = {
 		id,
@@ -77,12 +102,12 @@ export async function persistSealedUpload(
 		itemType: 'file' as const,
 		name,
 		mimeType: mime,
-		sizeBytes: sealed.originalSize,
+		sizeBytes: BigInt(sealed.originalSize),
 		isPinned: false,
 		isStarred: false,
 		trashedAt: null,
 		isEncrypted: true,
-		isCompressed: true,
+		isCompressed: sealed.isCompressed,
 		color: 'base' as const
 	};
 
@@ -93,7 +118,7 @@ export async function persistSealedUpload(
 			? localPathNewFileInsideFolder(parentFolder.path, id, name)
 			: localPathNewFileAtRoot(userDir, id, name);
 		await mkdir(parentFolder ? parentFolder.path : userDir, { recursive: true });
-		await writeFile(diskPath, stored);
+		await writeFile(diskPath, sealed.buffer);
 
 		await db.insert(MainFileSchema).values({
 			...baseInsert,
@@ -106,9 +131,110 @@ export async function persistSealedUpload(
 			: teamId
 				? tigrisKeyNewFileAtRootTeam(teamId, id, name)
 				: tigrisKeyNewFileAtRoot(userId, id, name);
-		await TigrisUtil.upload(objectKey, stored, {
+		await TigrisUtil.upload(objectKey, sealed.buffer, {
 			contentType: 'application/octet-stream'
 		});
+
+		await db.insert(MainFileSchema).values({
+			...baseInsert,
+			path: objectKey,
+			storageProvider: 'tigris'
+		});
+	}
+
+	return { id, name };
+}
+
+/** Finalize a chunked upload from an on-disk assembled file (no full-file RAM buffer). */
+export async function persistSealedUploadFromPath(
+	userId: string,
+	provider: StorageProviderId,
+	parentIdRaw: unknown,
+	sourcePath: string,
+	originalFileName: string,
+	mimeType: string,
+	opts?: { teamId?: string | null }
+): Promise<{ id: string; name: string }> {
+	const fileStat = await stat(sourcePath);
+	const originalSize = fileStat.size;
+	assertWithinUploadLimit(originalSize);
+
+	const teamId = opts?.teamId ?? null;
+	const { name, mime, parentFolder } = await resolvePersistContext({
+		userId,
+		provider,
+		parentIdRaw,
+		originalFileName,
+		mimeType,
+		teamId
+	});
+
+	const id = randomUUID();
+
+	if (originalSize <= IN_MEMORY_SEAL_THRESHOLD_BYTES) {
+		const plain = await readFile(sourcePath);
+		return persistSealedUpload(
+			userId,
+			provider,
+			parentIdRaw,
+			plain,
+			originalFileName,
+			mimeType,
+			opts
+		);
+	}
+
+	const baseInsert = {
+		id,
+		ownerId: userId,
+		teamId,
+		parentId: parentFolder?.id ?? null,
+		itemType: 'file' as const,
+		name,
+		mimeType: mime,
+		sizeBytes: BigInt(originalSize),
+		isPinned: false,
+		isStarred: false,
+		trashedAt: null,
+		isEncrypted: true,
+		isCompressed: false,
+		color: 'base' as const
+	};
+
+	if (provider === 'local') {
+		const userDir = teamId ? localTeamUploadDir(teamId) : localUserUploadDir(userId);
+		await mkdir(userDir, { recursive: true });
+		const diskPath = parentFolder
+			? localPathNewFileInsideFolder(parentFolder.path, id, name)
+			: localPathNewFileAtRoot(userDir, id, name);
+		await mkdir(parentFolder ? parentFolder.path : userDir, { recursive: true });
+
+		const sealed = await sealFileStream(sourcePath, diskPath, { mime, originalSize });
+		baseInsert.isCompressed = sealed.isCompressed;
+
+		await db.insert(MainFileSchema).values({
+			...baseInsert,
+			path: diskPath,
+			storageProvider: 'local'
+		});
+	} else {
+		const objectKey = parentFolder
+			? tigrisKeyNewFileInsideFolder(parentFolder.path, id, name)
+			: teamId
+				? tigrisKeyNewFileAtRootTeam(teamId, id, name)
+				: tigrisKeyNewFileAtRoot(userId, id, name);
+
+		const sealedTemp = join(tmpdir(), `znl-seal-${id}.bin`);
+		try {
+			const sealed = await sealFileStream(sourcePath, sealedTemp, { mime, originalSize });
+			baseInsert.isCompressed = sealed.isCompressed;
+			await TigrisUtil.upload(objectKey, createReadStream(sealedTemp), {
+				contentType: 'application/octet-stream',
+				multipart: originalSize > 32 * 1024 * 1024
+			});
+		} finally {
+			await unlink(sealedTemp).catch(() => undefined);
+		}
 
 		await db.insert(MainFileSchema).values({
 			...baseInsert,

@@ -111,7 +111,7 @@ docker run -p 1025:1025 \
   znl-drive
 ```
 
-The image sets `BODY_SIZE_LIMIT=100M` and `LOCAL_DRIVE_DATA_DIR=/data/znl-drive`. Mount a volume at `/data/znl-drive` when using **Local** storage so uploads survive container restarts.
+The image sets `BODY_SIZE_LIMIT=8M` (per chunk), `LOCAL_DRIVE_DATA_DIR=/data/znl-drive`, and `MAX_UPLOAD_BYTES=0` (unlimited single-file size). Mount a volume at `/data/znl-drive` when using **Local** storage so uploads survive container restarts. Large files (e.g. MP4) are assembled on disk under `.upload-sessions/` during chunked upload; ensure enough free disk for roughly **2× the file size** during finalize.
 
 Or with compose (includes the volume automatically):
 

@@ -3,6 +3,7 @@ import {
 	sumSubtreeFileBytesForFolders,
 	sumSubtreeFileBytesForFoldersTeam
 } from '$lib/server/drive-folder-size';
+import { sizeBytesJson } from '$lib/server/drive-size-json';
 import { requireApiSession } from '$lib/server/require-api-session';
 import { db } from '$lib/server/db';
 import { AuthUserSchema } from '$lib/server/db/schema/auth-schema/auth.schema';
@@ -163,7 +164,7 @@ export const GET: RequestHandler = async ({ request, url }) => {
 			ownerId: r.ownerId,
 			name: r.name,
 			itemType: r.itemType,
-			sizeBytes: r.sizeBytes,
+			sizeBytes: sizeBytesJson(r.sizeBytes),
 			updatedAt: toDate(r.updatedAt),
 			storageProvider: r.storageProvider as StorageProviderId,
 			isPinned: r.isPinned,
@@ -185,7 +186,7 @@ export const GET: RequestHandler = async ({ request, url }) => {
 			ownerId: r.ownerId,
 			name: r.name,
 			itemType: r.itemType,
-			sizeBytes: r.sizeBytes,
+			sizeBytes: sizeBytesJson(r.sizeBytes),
 			updatedAt: toDate(r.updatedAt),
 			storageProvider: r.storageProvider as StorageProviderId,
 			isPinned: r.isPinned,
@@ -207,7 +208,7 @@ export const GET: RequestHandler = async ({ request, url }) => {
 			ownerId: r.ownerId,
 			name: r.name,
 			itemType: r.itemType,
-			sizeBytes: r.sizeBytes,
+			sizeBytes: sizeBytesJson(r.sizeBytes),
 			updatedAt: toDate(r.updatedAt),
 			storageProvider: r.storageProvider as StorageProviderId,
 			isPinned: r.isPinned,

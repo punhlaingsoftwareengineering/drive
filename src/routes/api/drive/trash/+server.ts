@@ -1,4 +1,5 @@
 import { TRASH_RETENTION_DAYS } from '$lib/server/drive-trash-constants';
+import { sizeBytesJson } from '$lib/server/drive-size-json';
 import { requireApiSession } from '$lib/server/require-api-session';
 import { sumSubtreeFileBytesForTrashedFolderRows } from '$lib/server/drive-folder-size';
 import { db } from '$lib/server/db';
@@ -70,7 +71,10 @@ export const GET: RequestHandler = async ({ request, url }) => {
 				id: r.id,
 				name: r.name,
 				itemType: r.itemType,
-				sizeBytes: r.itemType === 'folder' ? (subtreeBytes.get(r.id) ?? 0) : r.sizeBytes,
+				sizeBytes:
+					r.itemType === 'folder'
+						? (subtreeBytes.get(r.id) ?? 0)
+						: sizeBytesJson(r.sizeBytes),
 				updatedAt: r.updatedAt.toISOString(),
 				trashedAt: trashedAt.toISOString(),
 				purgeAt: purgeAt.toISOString(),

@@ -1,9 +1,10 @@
+import { UPLOAD_CHUNK_BYTES } from '$lib/upload/chunk-bytes';
 import { resolve as resolveAppPath } from '$app/paths';
 import { redirectToLoginSessionExpired } from '$lib/client/fetch-session';
 import type { StorageProviderId } from '$lib/model/storage-provider';
 
 /** Use chunked binary upload above this size (bytes). */
-export const UPLOAD_CHUNK_BYTES = 1024 * 1024; // 1 MiB
+export { UPLOAD_CHUNK_BYTES };
 
 function uploadQuery(params: Record<string, string | number | undefined | null>): string {
 	const qs = new URLSearchParams();
@@ -122,10 +123,12 @@ async function uploadOneFileChunked(
 		onProgress(loaded, file.size);
 		if (res.done && res.ok) return;
 	}
+
+	throw new Error('Chunk upload did not complete');
 }
 
 /**
- * Binary upload with progress. Large files are sent in 1 MiB chunks to `/api/drive/upload/chunk`.
+ * Binary upload with progress. Large files are sent in 8 MiB chunks to `/api/drive/upload/chunk`.
  * Uses `application/octet-stream` (not multipart) to avoid SvelteKit CSRF origin checks on LAN HTTP.
  */
 export function uploadFilesWithProgress(
