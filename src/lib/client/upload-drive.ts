@@ -1,4 +1,5 @@
 import { UPLOAD_CHUNK_BYTES } from '$lib/upload/chunk-bytes';
+import { iterateFileChunks } from '$lib/upload/file-chunks';
 import { resolve as resolveAppPath } from '$app/paths';
 import { redirectToLoginSessionExpired } from '$lib/client/fetch-session';
 import type { StorageProviderId } from '$lib/model/storage-provider';
@@ -97,29 +98,24 @@ async function uploadOneFileChunked(
 	onProgress: (loaded: number, total: number) => void,
 	teamId?: string | null
 ): Promise<void> {
-	const chunkCount = Math.max(1, Math.ceil(file.size / UPLOAD_CHUNK_BYTES));
 	let uploadId: string | undefined;
 	let loaded = 0;
 
-	for (let i = 0; i < chunkCount; i++) {
-		const start = i * UPLOAD_CHUNK_BYTES;
-		const end = Math.min(start + UPLOAD_CHUNK_BYTES, file.size);
-		const slice = file.slice(start, end);
-
+	for (const { chunk, index, chunkCount } of iterateFileChunks(file, UPLOAD_CHUNK_BYTES)) {
 		const query: Record<string, string | number | undefined | null> = {
-			chunkIndex: i,
+			chunkIndex: index,
 			chunkCount,
 			uploadId,
-			storageProvider: i === 0 ? storageProvider : undefined,
-			fileName: i === 0 ? file.name : undefined,
-			mimeType: i === 0 ? file.type || 'application/octet-stream' : undefined,
-			parentId: i === 0 ? parentFolderId : undefined,
-			teamId: i === 0 ? teamId : undefined
+			storageProvider: index === 0 ? storageProvider : undefined,
+			fileName: index === 0 ? file.name : undefined,
+			mimeType: index === 0 ? file.type || 'application/octet-stream' : undefined,
+			parentId: index === 0 ? parentFolderId : undefined,
+			teamId: index === 0 ? teamId : undefined
 		};
 
-		const res = await postChunk(query, slice, onProgress, file.size, loaded);
+		const res = await postChunk(query, chunk, onProgress, file.size, loaded);
 		if (res.uploadId) uploadId = res.uploadId;
-		loaded += end - start;
+		loaded += chunk.size;
 		onProgress(loaded, file.size);
 		if (res.done && res.ok) return;
 	}

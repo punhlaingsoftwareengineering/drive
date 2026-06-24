@@ -33,7 +33,7 @@ export function dataPath(userId: string, uploadId: string) {
 
 export async function assembledSize(userId: string, uploadId: string): Promise<number> {
 	const s = await stat(assembledPath(userId, uploadId));
-	return s.size;
+	return typeof s.size === 'bigint' ? Number(s.size) : s.size;
 }
 
 export async function readMeta(userId: string, uploadId: string): Promise<ChunkUploadMeta | null> {

@@ -22,6 +22,7 @@ ENV NODE_ENV=production \
     HOST=0.0.0.0 \
     PORT=1025 \
     BODY_SIZE_LIMIT=8M \
+    MAX_UPLOAD_BYTES=0 \
     LOCAL_DRIVE_DATA_DIR=/data/znl-drive
 
 RUN mkdir -p /data/znl-drive

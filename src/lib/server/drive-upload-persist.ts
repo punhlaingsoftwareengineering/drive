@@ -156,7 +156,8 @@ export async function persistSealedUploadFromPath(
 	opts?: { teamId?: string | null }
 ): Promise<{ id: string; name: string }> {
 	const fileStat = await stat(sourcePath);
-	const originalSize = fileStat.size;
+	const originalSize =
+		typeof fileStat.size === 'bigint' ? Number(fileStat.size) : fileStat.size;
 	assertWithinUploadLimit(originalSize);
 
 	const teamId = opts?.teamId ?? null;

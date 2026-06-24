@@ -1,5 +1,5 @@
 import { env } from '$env/dynamic/private';
-import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from 'node:crypto';
+import { createCipheriv, createDecipheriv, randomBytes, scryptSync, constants as cryptoConstants } from 'node:crypto';
 import { createReadStream, createWriteStream } from 'node:fs';
 import { open } from 'node:fs/promises';
 import { pipeline } from 'node:stream/promises';
@@ -120,7 +120,8 @@ export async function sealFileStream(
 	outputPath: string,
 	opts: { mime?: string; originalSize: number }
 ): Promise<{ originalSize: number; isCompressed: boolean }> {
-	const compress = shouldCompressMime(opts.mime ?? '');
+	const compress =
+		shouldCompressMime(opts.mime ?? '') && opts.originalSize <= cryptoConstants.MAX_LENGTH;
 	if (compress) {
 		const { readFile } = await import('node:fs/promises');
 		const plain = await readFile(inputPath);
