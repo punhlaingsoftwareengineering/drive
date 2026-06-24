@@ -3,6 +3,7 @@
 	import { invalidateAll } from '$app/navigation';
 	import SettingsSearchHighlight from '$lib/components/settings-search-highlight.svelte';
 	import { appName } from '$lib/app-name';
+	import { copyTextToClipboard } from '$lib/client/copy-text';
 	import { fetchWithSession } from '$lib/client/fetch-session';
 	import { resolveHref } from '$lib/url/resolve-href';
 	import { StatusColorEnum } from '$lib/model/enum/color.enum';
@@ -106,18 +107,7 @@
 
 	async function copyText(text: string) {
 		try {
-			if (navigator.clipboard?.writeText) {
-				await navigator.clipboard.writeText(text);
-			} else {
-				const ta = document.createElement('textarea');
-				ta.value = text;
-				ta.style.position = 'fixed';
-				ta.style.left = '-9999px';
-				document.body.appendChild(ta);
-				ta.select();
-				document.execCommand('copy');
-				document.body.removeChild(ta);
-			}
+			await copyTextToClipboard(text);
 			toastService.addToast('Copied', StatusColorEnum.SUCCESS);
 		} catch {
 			toastService.addToast('Copy failed', StatusColorEnum.ERROR);

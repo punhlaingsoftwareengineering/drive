@@ -45,7 +45,7 @@
 		{
 			href: '/onboarding/docs/user/public-links',
 			title: 'Public links',
-			desc: 'Anonymous preview links and optional direct file URLs.',
+			desc: 'Anonymous preview links and direct file URLs for every file type.',
 			Icon: LucideLink2
 		},
 		{

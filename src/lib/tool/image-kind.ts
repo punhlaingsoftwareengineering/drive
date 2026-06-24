@@ -1,4 +1,4 @@
-/** True when the file should be treated as an image for previews / direct image URLs. */
+/** True when the file should be treated as an image for inline preview on the share page. */
 export function fileLooksLikeImage(mimeType: string | null | undefined, fileName: string): boolean {
 	if (mimeType?.startsWith('image/')) return true;
 	return /\.(png|jpe?g|gif|webp|svg|avif|bmp|ico)$/i.test(fileName);

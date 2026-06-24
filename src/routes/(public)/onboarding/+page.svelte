@@ -1,5 +1,7 @@
 <script>
+	import AppMarkIcon from '$lib/components/app-mark-icon.svelte';
 	import OnboardingHeroCarousel from '$lib/components/onboarding-hero-carousel.svelte';
+	import { appName } from '$lib/app-name';
 	import { localizeHref } from '$lib/paraglide/runtime';
 	import {
 		LucideArchive,
@@ -15,6 +17,7 @@
 <section class="my-20 flex flex-col gap-20">
 	<section id="hero" class="my-12 flex flex-col items-center gap-10 lg:flex-row lg:justify-between lg:gap-12">
 		<div class="max-w-xl shrink-0">
+			<AppMarkIcon class="mb-4 size-20 text-[#DE1A58] sm:size-24" title={appName()} />
 			<h1 class="icon-font text-5xl font-black">Storage As A Service</h1>
 			<p class="my-ft-lead">a portable service that integrates into your workflow.</p>
 

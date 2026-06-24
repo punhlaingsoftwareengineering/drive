@@ -86,12 +86,18 @@
 							class="max-h-[70vh] w-full object-contain"
 							loading="lazy"
 						/>
-						<p class="mt-2 text-xs break-all text-base-content/60">
-							Direct file URL:
-							<a class="d-link d-link-primary" href={rawUrl} target="_blank" rel="noreferrer"
-								>{directFileAbsolute || rawUrl}</a
-							>
-						</p>
+					</div>
+				{/if}
+
+				{#if share.item.itemType === 'file'}
+					<div class="space-y-1">
+						<div class="text-xs text-base-content/60">Direct file URL</div>
+						<input
+							type="text"
+							readonly
+							class="d-input-bordered d-input d-input-sm w-full font-mono text-xs"
+							value={directFileAbsolute || rawUrl}
+						/>
 					</div>
 				{/if}
 

@@ -22,7 +22,7 @@
 	import {
 		LucideArrowLeft,
 		LucideDownload,
-		LucideFile,
+	import AppMarkIcon from '$lib/components/app-mark-icon.svelte';
 		LucideFolder,
 		LucideLink,
 		LucidePin,
@@ -208,9 +208,8 @@
 										</button>
 									{:else}
 										<span class="inline-flex max-w-full min-w-0 items-center gap-2">
-											<LucideFile
+											<AppMarkIcon
 												class="size-5 shrink-0 {fileLabelIconClass(item.color ?? 'base')}"
-												aria-hidden="true"
 											/>
 											<span class="truncate font-medium">{item.name}</span>
 										</span>

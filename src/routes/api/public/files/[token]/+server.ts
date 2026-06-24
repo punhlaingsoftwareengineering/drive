@@ -96,19 +96,16 @@ export const GET: RequestHandler = async ({ params }) => {
 		throw error(500, 'Failed to decode file');
 	}
 
-	// Inline for images so the raw URL works in <img src="...">. Otherwise serve as attachment.
-	const inline = fileLooksLikeImage(row.mimeType, row.name);
+	// Inline so direct URLs work for embeds, hotlinking, and browser-native viewers.
 	let contentType = effectiveContentType(row.mimeType, row.name);
-	if (inline && !contentType.startsWith('image/')) {
+	if (!contentType.startsWith('image/') && fileLooksLikeImage(row.mimeType, row.name)) {
 		const guessed = guessImageMimeFromFileName(row.name);
 		if (guessed) contentType = guessed;
 	}
 	return new Response(new Uint8Array(body), {
 		headers: {
 			'Content-Type': contentType,
-			'Content-Disposition': inline
-				? contentDispositionInline(row.name)
-				: contentDispositionAttachment(row.name),
+			'Content-Disposition': contentDispositionInline(row.name),
 			'Content-Length': String(body.length),
 			'Cache-Control': 'public, max-age=0, must-revalidate'
 		}

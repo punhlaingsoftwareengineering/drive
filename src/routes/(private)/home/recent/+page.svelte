@@ -5,7 +5,7 @@
 	import { fetchWithSession } from '$lib/client/fetch-session';
 	import { resolveHref } from '$lib/url/resolve-href';
 	import { page } from '$app/state';
-	import { copyTextToClipboard } from '$lib/client/copy-text';
+	import { copyPublicLinkFromButton } from '$lib/client/copy-public-link';
 	import {
 		downloadDriveFileAsBlob,
 		patchDriveFile,
@@ -30,7 +30,7 @@
 		LucideCopy,
 		LucideDownload,
 		LucideEllipsisVertical,
-		LucideFile,
+	import AppMarkIcon from '$lib/components/app-mark-icon.svelte';
 		LucideFolder,
 		LucideLink2,
 		LucidePalette,
@@ -104,7 +104,7 @@
 	let copyPublicLinkDialog = $state<{
 		name: string;
 		shareUrl: string;
-		imageDirectUrl?: string;
+		fileDirectUrl?: string;
 	} | null>(null);
 
 	let openFileActionsId = $state<string | null>(null);
@@ -118,8 +118,7 @@
 				public: true;
 				token: string;
 				shareUrl: string;
-				imageDirectUrl?: string;
-				copyUrl: string;
+				fileDirectUrl?: string;
 		  };
 
 	let publicLinkMeta = $state<Record<string, PublicLinkMeta>>({});
@@ -150,8 +149,7 @@
 						public: true;
 						token: string;
 						shareUrl: string;
-						imageDirectUrl?: string;
-						copyUrl: string;
+						fileDirectUrl?: string;
 				  };
 			if (!j.public) {
 				publicLinkMeta = { ...publicLinkMeta, [itemId]: { public: false } };
@@ -207,33 +205,17 @@
 		copyPublicLinkDialog = {
 			name: item?.name ?? 'File',
 			shareUrl: meta.shareUrl,
-			imageDirectUrl: meta.imageDirectUrl
+			fileDirectUrl: meta.fileDirectUrl
 		};
 		queueMicrotask(() => copyPublicLinkDialogEl?.showModal());
 	}
 
-	async function copyPublicLinkField(url: string, toastMsg: string) {
-		try {
-			await copyTextToClipboard(url);
-			toastService.addToast(toastMsg, StatusColorEnum.SUCCESS);
-		} catch {
-			toastService.addToast(
-				'Could not copy automatically — select the text in the field and copy manually',
-				StatusColorEnum.WARNING
-			);
-		}
+	function copyDialogSharePageUrl(event: MouseEvent) {
+		copyPublicLinkFromButton(event.currentTarget as HTMLButtonElement, 'Share page link copied');
 	}
 
-	async function copyDialogSharePageUrl() {
-		const d = copyPublicLinkDialog;
-		if (!d) return;
-		await copyPublicLinkField(d.shareUrl, 'Share page link copied');
-	}
-
-	async function copyDialogDirectImageUrl() {
-		const d = copyPublicLinkDialog;
-		if (!d?.imageDirectUrl) return;
-		await copyPublicLinkField(d.imageDirectUrl, 'Direct image link copied');
+	function copyDialogDirectFileUrl(event: MouseEvent) {
+		copyPublicLinkFromButton(event.currentTarget as HTMLButtonElement, 'Direct file link copied');
 	}
 
 	function closeCopyPublicLinkDialog() {
@@ -570,9 +552,8 @@
 										</button>
 									{:else}
 										<span class="inline-flex max-w-full min-w-0 items-center gap-2">
-											<LucideFile
+											<AppMarkIcon
 												class="size-5 shrink-0 {fileLabelIconClass(item.color ?? 'base')}"
-												aria-hidden="true"
 											/>
 											<span class="truncate font-medium">{item.name}</span>
 										</span>
@@ -907,27 +888,27 @@
 						<button
 							type="button"
 							class="d-btn shrink-0"
-							onclick={() => void copyDialogSharePageUrl()}
+							onclick={(e) => copyDialogSharePageUrl(e)}
 						>
 							<LucideCopy class="size-4 shrink-0" aria-hidden="true" />
 							Copy
 						</button>
 					</div>
 				</div>
-				{#if copyPublicLinkDialog.imageDirectUrl}
+				{#if copyPublicLinkDialog.fileDirectUrl}
 					<div class="d-form-control w-full">
-						<span class="d-label-text">Direct image URL</span>
+						<span class="d-label-text">Direct file URL</span>
 						<div class="mt-1 flex flex-col gap-2 sm:flex-row sm:items-stretch">
 							<input
 								type="text"
 								readonly
 								class="d-input-bordered d-input w-full min-w-0 font-mono text-xs"
-								value={copyPublicLinkDialog.imageDirectUrl}
+								value={copyPublicLinkDialog.fileDirectUrl}
 							/>
 							<button
 								type="button"
 								class="d-btn shrink-0"
-								onclick={() => void copyDialogDirectImageUrl()}
+								onclick={(e) => copyDialogDirectFileUrl(e)}
 							>
 								<LucideCopy class="size-4 shrink-0" aria-hidden="true" />
 								Copy

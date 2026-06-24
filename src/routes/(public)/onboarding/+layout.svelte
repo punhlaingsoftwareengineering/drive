@@ -1,7 +1,8 @@
 <script lang="ts">
+	import AppMarkIcon from '$lib/components/app-mark-icon.svelte';
 	import { daisyDropdown } from '$lib/actions/daisy-dropdown';
 	import { appName, appTitle } from '$lib/app-name';
-	import { LucideCircleUser, LucideCloudUpload, LucideMenu } from '@lucide/svelte';
+	import { LucideCircleUser, LucideMenu } from '@lucide/svelte';
 	import { resolve } from '$app/paths';
 	import { localizeHref } from '$lib/paraglide/runtime';
 	import { SiGithub } from '@icons-pack/svelte-simple-icons';
@@ -54,7 +55,7 @@
 	</main>
 	<footer class="d-footer-center d-footer d-footer-horizontal bg-primary p-10 text-primary-content">
 		<aside>
-			<LucideCloudUpload class="size-24 text-[#DE1A58]" />
+			<AppMarkIcon class="size-24 text-[#DE1A58]" title={appName()} />
 			<p class="font-bold">{appName()}</p>
 			<p>Copyright © {new Date().getFullYear()} - All right reserved</p>
 		</aside>

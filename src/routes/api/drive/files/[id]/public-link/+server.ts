@@ -1,7 +1,6 @@
 import { getMainFileIfAccessible, requireMainFileForMutation } from '$lib/server/drive-file-access';
 import { requireApiSession } from '$lib/server/require-api-session';
 import { appAbsoluteUrlFromRequest } from '$lib/server/app-absolute-url';
-import { fileLooksLikeImage } from '$lib/tool/image-kind';
 import { db } from '$lib/server/db';
 import {
 	MainFilePublicLinkSchema,
@@ -49,18 +48,16 @@ export const GET: RequestHandler = async ({ request, params }) => {
 	}
 
 	const shareUrl = appAbsoluteUrlFromRequest(request.url, `/${row.token}`);
-	const imageDirectUrl =
-		row.itemType === 'file' && fileLooksLikeImage(row.mimeType, row.name)
+	const fileDirectUrl =
+		row.itemType === 'file'
 			? appAbsoluteUrlFromRequest(request.url, `/api/public/files/${row.token}`)
 			: undefined;
-	const copyUrl = imageDirectUrl ?? shareUrl;
 
 	return json({
 		public: true as const,
 		token: row.token,
 		shareUrl,
-		imageDirectUrl,
-		copyUrl
+		fileDirectUrl
 	});
 };
 
@@ -95,18 +92,16 @@ export const POST: RequestHandler = async ({ request, params }) => {
 	}
 
 	const shareUrl = appAbsoluteUrlFromRequest(request.url, `/${token}`);
-	const imageDirectUrl =
-		item.itemType === 'file' && fileLooksLikeImage(item.mimeType, item.name)
+	const fileDirectUrl =
+		item.itemType === 'file'
 			? appAbsoluteUrlFromRequest(request.url, `/api/public/files/${token}`)
 			: null;
-	const copyUrl = imageDirectUrl ?? shareUrl;
 
 	return json({
 		ok: true,
 		token,
 		shareUrl,
-		imageDirectUrl,
-		copyUrl
+		fileDirectUrl
 	});
 };
 

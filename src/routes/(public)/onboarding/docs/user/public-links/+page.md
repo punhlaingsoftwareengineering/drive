@@ -11,7 +11,12 @@ From the file actions in **Home**, enable a public link for the item. The server
 - **Share page (human-friendly):** `https://your-host/<token>` — the anonymous preview page loads metadata from `GET /api/public/share/<token>`.
 - **Direct file/stream:** `https://your-host/api/public/files/<token>` — returns file bytes or a folder ZIP as implemented by the API.
 
-For **images**, the app may also surface a direct image URL when the MIME type allows inline display.
+For **files**, the app surfaces both URLs in the copy dialog:
+
+- **Share page** — `https://your-host/<token>`
+- **Direct file** — `https://your-host/api/public/files/<token>` — raw bytes with `Content-Disposition: inline` (works for images, PDF, audio, video, and other file types). Only **images** get an inline preview on the share page; other types show the direct URL and a download button.
+
+**Folders** only get the share page URL; direct access returns a ZIP archive.
 
 ## Revoking
 

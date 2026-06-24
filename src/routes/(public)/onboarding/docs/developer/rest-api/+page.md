@@ -18,7 +18,7 @@ This table reflects handlers under `src/routes/api` as of the current codebase. 
 | `PATCH`  | `/api/drive/files/[id]`             | Cookie or API key      | Update pin, star, name, color, trash flag.                          |
 | `DELETE` | `/api/drive/files/[id]`             | Cookie or API key      | Permanently delete an item that is **already in trash**.            |
 | `GET`    | `/api/drive/files/[id]/download`    | Cookie or API key      | Download file or folder archive.                                    |
-| `GET`    | `/api/drive/files/[id]/public-link` | Cookie or API key      | Get or check public link metadata for a file.                       |
+| `GET`    | `/api/drive/files/[id]/public-link` | Cookie or API key      | Public link metadata: `shareUrl`, `fileDirectUrl` (files only).     |
 | `POST`   | `/api/drive/files/[id]/public-link` | Cookie or API key      | Create (or refresh) public link.                                    |
 | `DELETE` | `/api/drive/files/[id]/public-link` | Cookie or API key      | Revoke public link.                                                 |
 | `POST`   | `/api/drive/files/[id]/share`       | Cookie or API key      | Share file with another user.                                       |

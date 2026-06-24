@@ -20,7 +20,7 @@
 	import { toastService } from '$lib/service/toast.service.svelte';
 	import { formatBytes } from '$lib/tool/format-bytes';
 	import {
-		LucideFile,
+	import AppMarkIcon from '$lib/components/app-mark-icon.svelte';
 		LucideFolder,
 		LucideLink,
 		LucidePin,
@@ -256,9 +256,8 @@
 												aria-hidden="true"
 											/>
 										{:else}
-											<LucideFile
+											<AppMarkIcon
 												class="size-5 shrink-0 {fileLabelIconClass(item.color ?? 'base')}"
-												aria-hidden="true"
 											/>
 										{/if}
 										<span class="truncate font-medium">{item.name}</span>

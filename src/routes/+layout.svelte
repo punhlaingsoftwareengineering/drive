@@ -10,7 +10,7 @@
 </script>
 
 <svelte:head>
-	<link rel="icon" type="image/x-icon" href={Favicon} />
+	<link rel="icon" type="image/svg+xml" href={Favicon} />
 	<title>{appName()}</title>
 </svelte:head>
 {@render children()}
