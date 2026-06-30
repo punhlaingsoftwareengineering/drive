@@ -29,10 +29,7 @@ function parseOptionalUuid(raw: string | null, label: string): string | null {
 	return p.data;
 }
 
-async function parseOptionalTeamId(
-	userId: string,
-	raw: string | null
-): Promise<string | null> {
+async function parseOptionalTeamId(userId: string, raw: string | null): Promise<string | null> {
 	const teamId = parseOptionalUuid(raw, 'team id');
 	if (!teamId) return null;
 	if (!(await isTeamMember(userId, teamId))) throw error(403, 'Forbidden');

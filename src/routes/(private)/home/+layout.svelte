@@ -31,6 +31,7 @@
 		LucideFolderPlus,
 		LucideHouse,
 		LucideLayoutDashboard,
+		LucideMenu,
 		LucidePlus,
 		LucideShare,
 		LucideTrash,
@@ -76,9 +77,7 @@
 			? (data.currentFolder?.id ?? data.teamView.rootFolderId)
 			: (data.currentFolder?.id ?? null)
 	);
-	const activeStorageProvider = $derived(
-		data.teamView?.storageProvider ?? driveStorage.current
-	);
+	const activeStorageProvider = $derived(data.teamView?.storageProvider ?? driveStorage.current);
 
 	function onStorageProviderSelect(e: Event) {
 		const v = (e.currentTarget as HTMLSelectElement).value as StorageProviderId;
@@ -123,7 +122,10 @@
 	function addNewTeamEmailChip() {
 		const raw = newTeamEmailDraft.trim();
 		if (!raw) return;
-		const parts = raw.split(/[\s,;]+/).map((s) => s.trim()).filter(Boolean);
+		const parts = raw
+			.split(/[\s,;]+/)
+			.map((s) => s.trim())
+			.filter(Boolean);
 		const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 		for (const p of parts) {
 			if (!re.test(p)) {
@@ -149,7 +151,10 @@
 	function addInviteTeamEmailChip() {
 		const raw = inviteTeamEmailDraft.trim();
 		if (!raw) return;
-		const parts = raw.split(/[\s,;]+/).map((s) => s.trim()).filter(Boolean);
+		const parts = raw
+			.split(/[\s,;]+/)
+			.map((s) => s.trim())
+			.filter(Boolean);
 		const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 		for (const p of parts) {
 			if (!re.test(p)) {
@@ -187,7 +192,9 @@
 			if (j.addedMembers) extra.push(`${j.addedMembers} member(s) added`);
 			if (j.pendingInvites) extra.push(`${j.pendingInvites} invite(s) pending`);
 			toastService.addToast(
-				extra.length ? `Invites sent — ${extra.join('; ')}` : 'No new invites (already members or pending)',
+				extra.length
+					? `Invites sent — ${extra.join('; ')}`
+					: 'No new invites (already members or pending)',
 				extra.length ? StatusColorEnum.SUCCESS : StatusColorEnum.INFO
 			);
 			inviteTeamDialog?.close();
@@ -222,7 +229,11 @@
 			});
 			if (!r.ok) throw new Error(await r.text());
 			bumpDriveListRefresh();
-			const j = (await r.json()) as { teamId?: string; addedMembers?: number; pendingInvites?: number };
+			const j = (await r.json()) as {
+				teamId?: string;
+				addedMembers?: number;
+				pendingInvites?: number;
+			};
 			const extra: string[] = [];
 			if (j.addedMembers) extra.push(`${j.addedMembers} member(s) added`);
 			if (j.pendingInvites) extra.push(`${j.pendingInvites} invite(s) pending`);
@@ -352,7 +363,11 @@
 			if (data.currentFolder) {
 				return [
 					{ href: resolve('/home'), label: 'Home', isLast: false },
-					{ href: resolve(`/home/team/${data.teamView.id}`), label: data.teamView.name, isLast: false },
+					{
+						href: resolve(`/home/team/${data.teamView.id}`),
+						label: data.teamView.name,
+						isLast: false
+					},
 					{ href: null, label: data.currentFolder.name, isLast: true }
 				];
 			}
@@ -435,7 +450,14 @@
 
 <div class="my-app flex min-h-screen flex-col">
 	<div class="d-navbar bg-base-100 shadow-sm">
-		<div class="d-navbar-start">
+		<div class="d-navbar-start gap-2">
+			<label
+				for="drive-sidebar-drawer"
+				class="d-btn d-btn-square d-btn-ghost lg:hidden"
+				aria-label="Open navigation"
+			>
+				<LucideMenu class="size-5" />
+			</label>
 			<a class="d-btn text-xl d-btn-ghost" href={resolve('/home')}>{appName()}</a>
 		</div>
 		<div class="d-navbar-end gap-3 sm:gap-4">
@@ -499,385 +521,401 @@
 		</div>
 	</div>
 	<main class="my-main flex min-h-0 flex-1 flex-col">
-		<div class="flex min-h-0 flex-1 px-5 py-5">
-			<!-- Sidebar -->
-			<aside class="flex h-full w-64 shrink-0 flex-col">
-				<!-- NEW: folder or upload (disabled on Shared / Trash with tooltip) -->
-				{#if newActionsDisabled}
-					<div class="d-tooltip d-tooltip-bottom w-full" data-tip={newActionsTooltip}>
-						<button
-							type="button"
-							class="d-btn m-1 d-btn-wide w-full max-w-full cursor-not-allowed opacity-50 d-btn-primary"
-							disabled
-						>
-							<LucidePlus class="size-4 shrink-0" aria-hidden="true" />
-							NEW
-						</button>
-					</div>
-				{:else}
-					<div class="d-dropdown d-dropdown-bottom w-full" use:daisyDropdown>
-						<div
-							tabindex="0"
-							role="button"
-							class="d-btn m-1 d-btn-wide w-full max-w-full d-btn-primary"
-						>
-							<LucidePlus class="size-4 shrink-0" aria-hidden="true" />
-							NEW
-						</div>
-						<ul
-							tabindex="-1"
-							class="d-dropdown-content d-menu z-1 mt-1 w-full max-w-full min-w-[12rem] rounded-box bg-base-100 p-2 shadow-sm"
-						>
-							<li>
-								<button
-									type="button"
-									class="w-full justify-start gap-2"
-									onclick={openNewFolderDialog}
-								>
-									<LucideFolderPlus class="size-4 shrink-0" aria-hidden="true" />
-									New folder
-								</button>
-							</li>
-							<li>
-								<button
-									type="button"
-									class="w-full justify-start gap-2"
-									onclick={openUploadDialogFromMenu}
-								>
-									<LucideUpload class="size-4 shrink-0" aria-hidden="true" />
-									Upload file
-								</button>
-							</li>
-							<li>
-								<button
-									type="button"
-									class="w-full justify-start gap-2"
-									onclick={openNewTeamDialog}
-								>
-									<LucideUsers class="size-4 shrink-0" aria-hidden="true" />
-									New team
-								</button>
-							</li>
-						</ul>
-					</div>
-				{/if}
-
-				<dialog bind:this={uploadDialog} class="d-modal">
-					<div class="d-modal-box max-w-lg">
-						<h3 class="d-font-title text-lg font-bold">Upload files</h3>
-						<p class="py-2 text-sm text-base-content/70">
-							Using storage: <strong>{storageProviderLabel(activeStorageProvider)}</strong>
-							— local files go to <code class="text-xs">~/Documents/znl-drive/</code>; Tigris uses
-							your bucket.
-						</p>
-						<input
-							bind:this={fileInputEl}
-							type="file"
-							multiple
-							class="d-file-input-bordered d-file-input w-full max-w-full"
-							onchange={onPickFiles}
-						/>
-						{#if pickerFiles.length > 0}
-							<p class="py-2 text-sm text-base-content/80">{pickerFiles.length} file(s) selected</p>
-						{/if}
-						{#if uploading}
-							<progress
-								class="d-progress mt-3 w-full d-progress-info"
-								value={uploadProgress}
-								max="100"
-							></progress>
-							<p class="mt-1 text-xs text-base-content/60">{uploadProgress}%</p>
-						{/if}
-						<div class="d-modal-action">
-							<form method="dialog">
-								<button type="submit" class="d-btn" disabled={uploading}>Cancel</button>
-							</form>
-							<button
-								type="button"
-								class="d-btn d-btn-primary"
-								disabled={!pickerFiles.length || uploading}
-								onclick={runUpload}
-							>
-								{uploading ? 'Uploading…' : 'Upload'}
-							</button>
-						</div>
-					</div>
-				</dialog>
-
-				<dialog bind:this={newFolderDialog} class="d-modal">
-					<div class="d-modal-box max-w-md">
-						<h3 class="d-font-title text-lg font-bold">New folder</h3>
-						<p class="py-2 text-sm text-base-content/70">
-							Storage: <strong>{storageProviderLabel(activeStorageProvider)}</strong>
-						</p>
-						<label class="d-form-control w-full">
-							<span class="d-label-text">Folder name</span>
-							<input
-								type="text"
-								class="d-input-bordered d-input w-full"
-								bind:value={newFolderName}
-								disabled={creatingFolder}
-								placeholder="My folder"
-								onkeydown={(e) => e.key === 'Enter' && void submitNewFolder()}
-							/>
-						</label>
-						<div class="d-modal-action">
-							<form method="dialog">
-								<button type="submit" class="d-btn" disabled={creatingFolder}>Cancel</button>
-							</form>
-							<button
-								type="button"
-								class="d-btn d-btn-primary"
-								disabled={creatingFolder || !newFolderName.trim()}
-								onclick={() => void submitNewFolder()}
-							>
-								{creatingFolder ? 'Creating…' : 'Create'}
-							</button>
-						</div>
-					</div>
-				</dialog>
-
-				<dialog bind:this={newTeamDialog} class="d-modal">
-					<div class="d-modal-box max-w-lg">
-						<h3 class="d-font-title text-lg font-bold">New team</h3>
-						<p class="py-2 text-sm text-base-content/70">
-							Shared drive for you and members. Storage:
-							<strong>{storageProviderLabel(activeStorageProvider)}</strong> (applies to this team)
-						</p>
-						<label class="d-form-control w-full max-w-md">
-							<span class="d-label-text">Team name</span>
-							<input
-								type="text"
-								class="d-input-bordered d-input w-full"
-								bind:value={newTeamName}
-								disabled={creatingTeam}
-								placeholder="My team"
-								onkeydown={(e) => e.key === 'Enter' && void submitNewTeam()}
-							/>
-						</label>
-						<div class="d-form-control mt-3 w-full max-w-md">
-							<span class="d-label-text">Invite others (emails)</span>
-							<div class="flex flex-wrap items-center gap-1 rounded-lg border border-base-300 bg-base-200/30 p-2">
-								{#each newTeamEmails as em (em)}
-									<span class="d-badge d-badge-ghost gap-1"
-										>{em}
-										<button
-											type="button"
-											class="d-btn d-btn-ghost d-btn-xs min-h-0 px-0"
-											onclick={() => removeNewTeamEmail(em)}
-											aria-label="Remove">×</button
-										></span
-									>
-								{/each}
-								<input
-									type="text"
-									class="d-input-ghost d-input d-input-sm min-w-[8rem] flex-1"
-									placeholder="user@example.com"
-									bind:value={newTeamEmailDraft}
-									disabled={creatingTeam}
-									autocomplete="off"
-									onkeydown={(e) => {
-										if (e.key === 'Enter' || e.key === ',') {
-											e.preventDefault();
-											addNewTeamEmailChip();
-										}
-									}}
-									onblur={() => addNewTeamEmailChip()}
-								/>
+		<div class="d-drawer min-h-0 flex-1 lg:d-drawer-open">
+			<input id="drive-sidebar-drawer" type="checkbox" class="d-drawer-toggle" />
+			<div class="d-drawer-content flex min-h-0 flex-1 flex-col px-3 py-4 sm:px-5 sm:py-5">
+				<div class="flex min-h-0 min-w-0 flex-1 flex-col">
+					<div
+						class="grid shrink-0 grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-2 rounded-lg bg-base-100 p-4"
+					>
+						<div class="min-w-0">
+							<div class="flex min-w-0 flex-wrap items-center gap-2">
+								{#if data.currentFolder}
+									<a class="d-btn shrink-0 gap-1 d-btn-ghost d-btn-sm" href={upFolderHref}>
+										<LucideArrowLeft class="size-4" aria-hidden="true" />
+										Up
+									</a>
+								{/if}
+								<h1 class="min-w-0 text-2xl font-bold break-words">{pageTitle}</h1>
 							</div>
 						</div>
-						<div class="d-modal-action">
-							<form method="dialog">
-								<button type="submit" class="d-btn" disabled={creatingTeam}>Cancel</button>
-							</form>
-							<button
-								type="button"
-								class="d-btn d-btn-primary"
-								disabled={creatingTeam || !newTeamName.trim()}
-								onclick={() => void submitNewTeam()}
-							>
-								{creatingTeam ? 'Creating…' : 'Create team'}
-							</button>
+						<div class="self-start text-right text-sm font-medium text-error">
+							{storageProviderLabel(activeStorageProvider)}
 						</div>
-					</div>
-				</dialog>
 
-				<dialog bind:this={inviteTeamDialog} class="d-modal">
-					<div class="d-modal-box max-w-lg">
-						<h3 class="d-font-title text-lg font-bold">
-							Invite people{#if data.teamView}<span class="text-base-content/70"> — {data.teamView.name}</span>{/if}
-						</h3>
-						<p class="py-2 text-sm text-base-content/70">
-							Registered users join immediately; others get a pending invite for when they sign up.
-						</p>
-						<div class="d-form-control w-full max-w-md">
-							<span class="d-label-text">Email addresses</span>
-							<div class="flex flex-wrap items-center gap-1 rounded-lg border border-base-300 bg-base-200/30 p-2">
-								{#each inviteTeamEmails as em (em)}
-									<span class="d-badge d-badge-ghost gap-1"
-										>{em}
-										<button
-											type="button"
-											class="d-btn d-btn-ghost d-btn-xs min-h-0 px-0"
-											onclick={() => removeInviteTeamEmail(em)}
-											aria-label="Remove">×</button
-										></span
-									>
+						<nav
+							class="d-breadcrumbs min-w-0 italic [&_ul]:flex-wrap {data.teamView
+								? ''
+								: 'col-span-2'}"
+							aria-label="Breadcrumb"
+						>
+							<ul>
+								{#each breadcrumbs as crumb, i (String(i) + (crumb.href ?? '') + crumb.label)}
+									<li>
+										{#if crumb.isLast}
+											<span aria-current="page">{crumb.label}</span>
+										{:else if crumb.href}
+											<a href={crumb.href}>{crumb.label}</a>
+										{:else}
+											<span>{crumb.label}</span>
+										{/if}
+									</li>
 								{/each}
-								<input
-									type="text"
-									class="d-input-ghost d-input d-input-sm min-w-[8rem] flex-1"
-									placeholder="user@example.com"
-									bind:value={inviteTeamEmailDraft}
-									disabled={invitingTeam}
-									autocomplete="off"
-									onkeydown={(e) => {
-										if (e.key === 'Enter' || e.key === ',') {
-											e.preventDefault();
-											addInviteTeamEmailChip();
-										}
-									}}
-									onblur={() => addInviteTeamEmailChip()}
-								/>
-							</div>
-						</div>
-						<div class="d-modal-action">
-							<form method="dialog">
-								<button type="submit" class="d-btn" disabled={invitingTeam}>Cancel</button>
-							</form>
-							<button
-								type="button"
-								class="d-btn d-btn-primary"
-								disabled={invitingTeam}
-								onclick={() => void submitTeamInvites()}
+							</ul>
+						</nav>
+						{#if data.teamView}
+							<div
+								class="d-tooltip d-tooltip-bottom flex justify-end self-center d-tooltip-primary"
+								data-tip="Invite"
 							>
-								{invitingTeam ? 'Sending…' : 'Send invites'}
-							</button>
-						</div>
+								<button
+									type="button"
+									class="d-btn d-btn-square d-btn-sm d-btn-secondary"
+									onclick={openInviteTeamDialog}
+									aria-label="Invite people to {data.teamView.name}"
+								>
+									<LucideUserPlus class="size-4" aria-hidden="true" />
+								</button>
+							</div>
+						{/if}
 					</div>
-				</dialog>
-
-				<span class="d-divider"></span>
-
-				<!-- Pages -->
-				<div class="flex flex-col gap-2">
-					<a
-						class="d-btn d-btn-wide d-btn-ghost d-btn-outline d-btn-primary"
-						href={resolve('/home')}
-					>
-						<LucideHouse class="size-4" />
-						Home</a
-					>
-					<a
-						class="d-btn d-btn-wide d-btn-ghost d-btn-outline d-btn-secondary"
-						href={resolve('/home/shared')}
-					>
-						<LucideShare class="size-4" />
-						Shared</a
-					>
-					<a
-						class="d-btn d-btn-wide d-btn-ghost d-btn-outline d-btn-accent"
-						href={resolve('/home/recent')}
-					>
-						<LucideClock class="size-4" />
-						Recent</a
-					>
-					<a
-						class="d-btn d-btn-wide d-btn-ghost d-btn-outline d-btn-error"
-						href={resolve('/home/trash')}
-					>
-						<LucideTrash class="size-4" />
-						Trash</a
-					>
-					<a
-						class="d-btn d-btn-wide d-btn-ghost d-btn-outline d-btn-success"
-						href={resolve('/home/dashboard')}
-					>
-						<LucideLayoutDashboard class="size-4" />
-						Dashboard</a
-					>
+					<div class="flex min-h-0 flex-1 flex-col pt-4">
+						{@render children?.()}
+					</div>
 				</div>
-
-				<span class="d-divider"></span>
-				<div class="flex flex-col gap-2">
-					<p class="px-1 text-xs font-semibold tracking-wide text-base-content/50 uppercase">Teams</p
-					>
-					{#if data.teams.length === 0}
-						<p class="px-1 text-sm text-base-content/50">No teams yet — use <strong>NEW</strong> →
-							<strong>New team</strong></p
-						>
+			</div>
+			<div class="d-drawer-side z-20">
+				<label for="drive-sidebar-drawer" class="d-drawer-overlay" aria-label="Close navigation"
+				></label>
+				<aside class="flex h-full w-64 flex-col bg-base-100 p-4">
+					<!-- NEW: folder or upload (disabled on Shared / Trash with tooltip) -->
+					{#if newActionsDisabled}
+						<div class="d-tooltip d-tooltip-bottom w-full" data-tip={newActionsTooltip}>
+							<button
+								type="button"
+								class="d-btn m-1 d-btn-wide w-full max-w-full cursor-not-allowed opacity-50 d-btn-primary"
+								disabled
+							>
+								<LucidePlus class="size-4 shrink-0" aria-hidden="true" />
+								NEW
+							</button>
+						</div>
 					{:else}
-						{#each data.teams as t (t.id)}
-							<a
-								class="d-btn d-btn-wide d-btn-ghost d-btn-outline d-btn-sm"
-								href={resolve(`/home/team/${t.id}`)}
+						<div class="d-dropdown d-dropdown-bottom w-full" use:daisyDropdown>
+							<div
+								tabindex="0"
+								role="button"
+								class="d-btn m-1 d-btn-wide w-full max-w-full d-btn-primary"
 							>
-								<LucideUsers class="size-4" />
-								<span class="truncate text-left">{t.name}</span>
-							</a>
-						{/each}
-					{/if}
-				</div>
-			</aside>
-			<!-- Main Content -->
-			<div class="flex min-h-0 min-w-0 flex-1 flex-col px-5">
-				<div
-					class="grid shrink-0 grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-2 rounded-lg bg-base-100 p-4"
-				>
-					<div class="min-w-0">
-						<div class="flex min-w-0 flex-wrap items-center gap-2">
-							{#if data.currentFolder}
-								<a class="d-btn shrink-0 gap-1 d-btn-ghost d-btn-sm" href={upFolderHref}>
-									<LucideArrowLeft class="size-4" aria-hidden="true" />
-									Up
-								</a>
-							{/if}
-							<h1 class="min-w-0 text-2xl font-bold break-words">{pageTitle}</h1>
+								<LucidePlus class="size-4 shrink-0" aria-hidden="true" />
+								NEW
+							</div>
+							<ul
+								tabindex="-1"
+								class="d-dropdown-content d-menu z-1 mt-1 w-full max-w-full min-w-[12rem] rounded-box bg-base-100 p-2 shadow-sm"
+							>
+								<li>
+									<button
+										type="button"
+										class="w-full justify-start gap-2"
+										onclick={openNewFolderDialog}
+									>
+										<LucideFolderPlus class="size-4 shrink-0" aria-hidden="true" />
+										New folder
+									</button>
+								</li>
+								<li>
+									<button
+										type="button"
+										class="w-full justify-start gap-2"
+										onclick={openUploadDialogFromMenu}
+									>
+										<LucideUpload class="size-4 shrink-0" aria-hidden="true" />
+										Upload file
+									</button>
+								</li>
+								<li>
+									<button
+										type="button"
+										class="w-full justify-start gap-2"
+										onclick={openNewTeamDialog}
+									>
+										<LucideUsers class="size-4 shrink-0" aria-hidden="true" />
+										New team
+									</button>
+								</li>
+							</ul>
 						</div>
-					</div>
-					<div class="self-start text-right text-sm font-medium text-error">
-						{storageProviderLabel(activeStorageProvider)}
+					{/if}
+
+					<dialog bind:this={uploadDialog} class="d-modal">
+						<div class="d-modal-box max-w-lg">
+							<h3 class="d-font-title text-lg font-bold">Upload files</h3>
+							<p class="py-2 text-sm text-base-content/70">
+								Using storage: <strong>{storageProviderLabel(activeStorageProvider)}</strong>
+								— local files go to <code class="text-xs">~/Documents/znl-drive/</code>; Tigris uses
+								your bucket.
+							</p>
+							<input
+								bind:this={fileInputEl}
+								type="file"
+								multiple
+								class="d-file-input-bordered d-file-input w-full max-w-full"
+								onchange={onPickFiles}
+							/>
+							{#if pickerFiles.length > 0}
+								<p class="py-2 text-sm text-base-content/80">
+									{pickerFiles.length} file(s) selected
+								</p>
+							{/if}
+							{#if uploading}
+								<progress
+									class="d-progress mt-3 w-full d-progress-info"
+									value={uploadProgress}
+									max="100"
+								></progress>
+								<p class="mt-1 text-xs text-base-content/60">{uploadProgress}%</p>
+							{/if}
+							<div class="d-modal-action">
+								<form method="dialog">
+									<button type="submit" class="d-btn" disabled={uploading}>Cancel</button>
+								</form>
+								<button
+									type="button"
+									class="d-btn d-btn-primary"
+									disabled={!pickerFiles.length || uploading}
+									onclick={runUpload}
+								>
+									{uploading ? 'Uploading…' : 'Upload'}
+								</button>
+							</div>
+						</div>
+					</dialog>
+
+					<dialog bind:this={newFolderDialog} class="d-modal">
+						<div class="d-modal-box max-w-md">
+							<h3 class="d-font-title text-lg font-bold">New folder</h3>
+							<p class="py-2 text-sm text-base-content/70">
+								Storage: <strong>{storageProviderLabel(activeStorageProvider)}</strong>
+							</p>
+							<label class="d-form-control w-full">
+								<span class="d-label-text">Folder name</span>
+								<input
+									type="text"
+									class="d-input-bordered d-input w-full"
+									bind:value={newFolderName}
+									disabled={creatingFolder}
+									placeholder="My folder"
+									onkeydown={(e) => e.key === 'Enter' && void submitNewFolder()}
+								/>
+							</label>
+							<div class="d-modal-action">
+								<form method="dialog">
+									<button type="submit" class="d-btn" disabled={creatingFolder}>Cancel</button>
+								</form>
+								<button
+									type="button"
+									class="d-btn d-btn-primary"
+									disabled={creatingFolder || !newFolderName.trim()}
+									onclick={() => void submitNewFolder()}
+								>
+									{creatingFolder ? 'Creating…' : 'Create'}
+								</button>
+							</div>
+						</div>
+					</dialog>
+
+					<dialog bind:this={newTeamDialog} class="d-modal">
+						<div class="d-modal-box max-w-lg">
+							<h3 class="d-font-title text-lg font-bold">New team</h3>
+							<p class="py-2 text-sm text-base-content/70">
+								Shared drive for you and members. Storage:
+								<strong>{storageProviderLabel(activeStorageProvider)}</strong> (applies to this team)
+							</p>
+							<label class="d-form-control w-full max-w-md">
+								<span class="d-label-text">Team name</span>
+								<input
+									type="text"
+									class="d-input-bordered d-input w-full"
+									bind:value={newTeamName}
+									disabled={creatingTeam}
+									placeholder="My team"
+									onkeydown={(e) => e.key === 'Enter' && void submitNewTeam()}
+								/>
+							</label>
+							<div class="d-form-control mt-3 w-full max-w-md">
+								<span class="d-label-text">Invite others (emails)</span>
+								<div
+									class="flex flex-wrap items-center gap-1 rounded-lg border border-base-300 bg-base-200/30 p-2"
+								>
+									{#each newTeamEmails as em (em)}
+										<span class="d-badge gap-1 d-badge-ghost"
+											>{em}
+											<button
+												type="button"
+												class="d-btn min-h-0 px-0 d-btn-ghost d-btn-xs"
+												onclick={() => removeNewTeamEmail(em)}
+												aria-label="Remove">×</button
+											></span
+										>
+									{/each}
+									<input
+										type="text"
+										class="d-input d-input-sm min-w-[8rem] flex-1 d-input-ghost"
+										placeholder="user@example.com"
+										bind:value={newTeamEmailDraft}
+										disabled={creatingTeam}
+										autocomplete="off"
+										onkeydown={(e) => {
+											if (e.key === 'Enter' || e.key === ',') {
+												e.preventDefault();
+												addNewTeamEmailChip();
+											}
+										}}
+										onblur={() => addNewTeamEmailChip()}
+									/>
+								</div>
+							</div>
+							<div class="d-modal-action">
+								<form method="dialog">
+									<button type="submit" class="d-btn" disabled={creatingTeam}>Cancel</button>
+								</form>
+								<button
+									type="button"
+									class="d-btn d-btn-primary"
+									disabled={creatingTeam || !newTeamName.trim()}
+									onclick={() => void submitNewTeam()}
+								>
+									{creatingTeam ? 'Creating…' : 'Create team'}
+								</button>
+							</div>
+						</div>
+					</dialog>
+
+					<dialog bind:this={inviteTeamDialog} class="d-modal">
+						<div class="d-modal-box max-w-lg">
+							<h3 class="d-font-title text-lg font-bold">
+								Invite people{#if data.teamView}<span class="text-base-content/70">
+										— {data.teamView.name}</span
+									>{/if}
+							</h3>
+							<p class="py-2 text-sm text-base-content/70">
+								Registered users join immediately; others get a pending invite for when they sign
+								up.
+							</p>
+							<div class="d-form-control w-full max-w-md">
+								<span class="d-label-text">Email addresses</span>
+								<div
+									class="flex flex-wrap items-center gap-1 rounded-lg border border-base-300 bg-base-200/30 p-2"
+								>
+									{#each inviteTeamEmails as em (em)}
+										<span class="d-badge gap-1 d-badge-ghost"
+											>{em}
+											<button
+												type="button"
+												class="d-btn min-h-0 px-0 d-btn-ghost d-btn-xs"
+												onclick={() => removeInviteTeamEmail(em)}
+												aria-label="Remove">×</button
+											></span
+										>
+									{/each}
+									<input
+										type="text"
+										class="d-input d-input-sm min-w-[8rem] flex-1 d-input-ghost"
+										placeholder="user@example.com"
+										bind:value={inviteTeamEmailDraft}
+										disabled={invitingTeam}
+										autocomplete="off"
+										onkeydown={(e) => {
+											if (e.key === 'Enter' || e.key === ',') {
+												e.preventDefault();
+												addInviteTeamEmailChip();
+											}
+										}}
+										onblur={() => addInviteTeamEmailChip()}
+									/>
+								</div>
+							</div>
+							<div class="d-modal-action">
+								<form method="dialog">
+									<button type="submit" class="d-btn" disabled={invitingTeam}>Cancel</button>
+								</form>
+								<button
+									type="button"
+									class="d-btn d-btn-primary"
+									disabled={invitingTeam}
+									onclick={() => void submitTeamInvites()}
+								>
+									{invitingTeam ? 'Sending…' : 'Send invites'}
+								</button>
+							</div>
+						</div>
+					</dialog>
+
+					<span class="d-divider"></span>
+
+					<!-- Pages -->
+					<div class="flex flex-col gap-2">
+						<a
+							class="d-btn d-btn-wide d-btn-ghost d-btn-outline d-btn-primary"
+							href={resolve('/home')}
+						>
+							<LucideHouse class="size-4" />
+							Home</a
+						>
+						<a
+							class="d-btn d-btn-wide d-btn-ghost d-btn-outline d-btn-secondary"
+							href={resolve('/home/shared')}
+						>
+							<LucideShare class="size-4" />
+							Shared</a
+						>
+						<a
+							class="d-btn d-btn-wide d-btn-ghost d-btn-outline d-btn-accent"
+							href={resolve('/home/recent')}
+						>
+							<LucideClock class="size-4" />
+							Recent</a
+						>
+						<a
+							class="d-btn d-btn-wide d-btn-ghost d-btn-outline d-btn-error"
+							href={resolve('/home/trash')}
+						>
+							<LucideTrash class="size-4" />
+							Trash</a
+						>
+						<a
+							class="d-btn d-btn-wide d-btn-ghost d-btn-outline d-btn-success"
+							href={resolve('/home/dashboard')}
+						>
+							<LucideLayoutDashboard class="size-4" />
+							Dashboard</a
+						>
 					</div>
 
-					<nav
-						class="d-breadcrumbs min-w-0 italic [&_ul]:flex-wrap {data.teamView
-							? ''
-							: 'col-span-2'}"
-						aria-label="Breadcrumb"
-					>
-						<ul>
-							{#each breadcrumbs as crumb, i (String(i) + (crumb.href ?? '') + crumb.label)}
-								<li>
-									{#if crumb.isLast}
-										<span aria-current="page">{crumb.label}</span>
-									{:else if crumb.href}
-										<a href={crumb.href}>{crumb.label}</a>
-									{:else}
-										<span>{crumb.label}</span>
-									{/if}
-								</li>
+					<span class="d-divider"></span>
+					<div class="flex flex-col gap-2">
+						<p class="px-1 text-xs font-semibold tracking-wide text-base-content/50 uppercase">
+							Teams
+						</p>
+						{#if data.teams.length === 0}
+							<p class="px-1 text-sm text-base-content/50">
+								No teams yet — use <strong>NEW</strong> →
+								<strong>New team</strong>
+							</p>
+						{:else}
+							{#each data.teams as t (t.id)}
+								<a
+									class="d-btn d-btn-wide d-btn-ghost d-btn-outline d-btn-sm"
+									href={resolve(`/home/team/${t.id}`)}
+								>
+									<LucideUsers class="size-4" />
+									<span class="truncate text-left">{t.name}</span>
+								</a>
 							{/each}
-						</ul>
-					</nav>
-					{#if data.teamView}
-						<div
-							class="d-tooltip d-tooltip-bottom d-tooltip-primary flex justify-end self-center"
-							data-tip="Invite"
-						>
-							<button
-								type="button"
-								class="d-btn d-btn-secondary d-btn-square d-btn-sm"
-								onclick={openInviteTeamDialog}
-								aria-label="Invite people to {data.teamView.name}"
-							>
-								<LucideUserPlus class="size-4" aria-hidden="true" />
-							</button>
-						</div>
-					{/if}
-				</div>
-				<div class="flex min-h-0 flex-1 flex-col pt-4">
-					{@render children?.()}
-				</div>
+						{/if}
+					</div>
+				</aside>
 			</div>
 		</div>
 	</main>

@@ -1,10 +1,10 @@
 # ---------- Build stage ----------
-FROM denoland/deno:alpine AS builder
+FROM denoland/deno:debian AS builder
 
 WORKDIR /app
 
 # Vite/SvelteKit build runs via Node (Deno's npm runner breaks tsconfig extends resolution).
-RUN apk add --no-cache nodejs
+RUN apt-get update && apt-get install -y --no-install-recommends nodejs && rm -rf /var/lib/apt/lists/*
 
 COPY package.json deno.json deno.lock ./
 RUN deno install

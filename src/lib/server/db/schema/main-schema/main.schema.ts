@@ -14,30 +14,32 @@ import { MasterStorageProviderSchema } from '../master-schema/master.schema';
 import { createUpdateTimestamp, uuidSchemaWrapper } from '../schema-wrapper';
 import { TeamSchema } from './team.schema';
 
-export const MainFileSchema = pgTable('main_file', {
-	...uuidSchemaWrapper,
-	ownerId: text('owner_id').notNull(),
-	/** When set, file belongs to a team drive (any member with matching storage may CRUD). */
-	teamId: uuid('team_id').references(() => TeamSchema.id, { onDelete: 'cascade' }),
-	parentId: uuid('parent_id').references((): AnyPgColumn => MainFileSchema.id, {
-		onDelete: 'cascade'
-	}),
-	itemType: text('item_type').notNull().default('file'),
-	isPinned: boolean('is_pinned').notNull().default(false),
-	isStarred: boolean('is_starred').notNull().default(false),
-	trashedAt: timestamp('trashed_at', { withTimezone: true }),
-	/** `null` = no label tint (folders default); files often `'base'`. */
-	color: text('color'),
-	path: text('path').notNull(),
-	name: text('name').notNull(),
-	mimeType: text('mime_type').notNull(),
-	sizeBytes: bigint('size_bytes', { mode: 'bigint' }).notNull(),
-	/** Postgres enum `master_storage_provider` — ties each object to a backend (local vs Tigris, etc.). */
-	storageProvider: MasterStorageProviderSchema('storage_provider').notNull().default('local'),
-	isEncrypted: boolean('is_encrypted').notNull().default(true),
-	isCompressed: boolean('is_compressed').notNull().default(true),
-	...createUpdateTimestamp
-},
+export const MainFileSchema = pgTable(
+	'main_file',
+	{
+		...uuidSchemaWrapper,
+		ownerId: text('owner_id').notNull(),
+		/** When set, file belongs to a team drive (any member with matching storage may CRUD). */
+		teamId: uuid('team_id').references(() => TeamSchema.id, { onDelete: 'cascade' }),
+		parentId: uuid('parent_id').references((): AnyPgColumn => MainFileSchema.id, {
+			onDelete: 'cascade'
+		}),
+		itemType: text('item_type').notNull().default('file'),
+		isPinned: boolean('is_pinned').notNull().default(false),
+		isStarred: boolean('is_starred').notNull().default(false),
+		trashedAt: timestamp('trashed_at', { withTimezone: true }),
+		/** `null` = no label tint (folders default); files often `'base'`. */
+		color: text('color'),
+		path: text('path').notNull(),
+		name: text('name').notNull(),
+		mimeType: text('mime_type').notNull(),
+		sizeBytes: bigint('size_bytes', { mode: 'bigint' }).notNull(),
+		/** Postgres enum `master_storage_provider` — ties each object to a backend (local vs Tigris, etc.). */
+		storageProvider: MasterStorageProviderSchema('storage_provider').notNull().default('local'),
+		isEncrypted: boolean('is_encrypted').notNull().default(true),
+		isCompressed: boolean('is_compressed').notNull().default(true),
+		...createUpdateTimestamp
+	},
 	(t) => [index('main_file_teamId_idx').on(t.teamId)]
 );
 

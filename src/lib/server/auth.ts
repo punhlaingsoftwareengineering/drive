@@ -21,8 +21,7 @@ import { getConfiguredOrigin, useSecureCookies } from '$lib/server/public-origin
  */
 const isBuildStep = building || process.env.BUILDING === 'true';
 
-const baseURL =
-	getConfiguredOrigin() ?? (isBuildStep ? 'http://localhost:1025' : undefined);
+const baseURL = getConfiguredOrigin() ?? (isBuildStep ? 'http://localhost:1025' : undefined);
 
 const secret =
 	(typeof env.BETTER_AUTH_SECRET === 'string' && env.BETTER_AUTH_SECRET.trim()

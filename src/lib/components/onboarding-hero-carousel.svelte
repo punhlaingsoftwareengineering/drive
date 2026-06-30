@@ -33,10 +33,7 @@
 		<div
 			class="relative mx-auto flex w-full max-w-[min(100%,72rem)] items-center justify-center rounded-box border border-base-300/70 bg-base-200/35 p-4 sm:p-6"
 		>
-			<div
-				class="flex w-full items-center justify-center"
-				style="max-height: min(52vh, 28rem);"
-			>
+			<div class="flex w-full items-center justify-center" style="max-height: min(52vh, 28rem);">
 				{#if current}
 					<img
 						src={current.src}
@@ -51,7 +48,7 @@
 			{#if count > 1}
 				<button
 					type="button"
-					class="d-btn absolute top-1/2 left-2 z-10 -translate-y-1/2 d-btn-circle d-btn-sm d-btn-ghost bg-base-100/80 backdrop-blur"
+					class="d-btn absolute top-1/2 left-2 z-10 d-btn-circle -translate-y-1/2 bg-base-100/80 d-btn-ghost backdrop-blur d-btn-sm"
 					aria-label="Previous slide"
 					onclick={() => go(-1)}
 				>
@@ -59,7 +56,7 @@
 				</button>
 				<button
 					type="button"
-					class="d-btn absolute top-1/2 right-2 z-10 -translate-y-1/2 d-btn-circle d-btn-sm d-btn-ghost bg-base-100/80 backdrop-blur"
+					class="d-btn absolute top-1/2 right-2 z-10 d-btn-circle -translate-y-1/2 bg-base-100/80 d-btn-ghost backdrop-blur d-btn-sm"
 					aria-label="Next slide"
 					onclick={() => go(1)}
 				>

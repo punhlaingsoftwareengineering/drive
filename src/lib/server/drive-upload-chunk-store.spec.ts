@@ -25,9 +25,8 @@ describe('drive-upload-chunk-store', () => {
 	});
 
 	it('assembles multi-chunk upload on disk', async () => {
-		const { appendChunk, assembledPath, assembledSize, removeSession } = await import(
-			'./drive-upload-chunk-store'
-		);
+		const { appendChunk, assembledPath, assembledSize, removeSession } =
+			await import('./drive-upload-chunk-store');
 
 		const init = {
 			fileName: 'clip.mp4',

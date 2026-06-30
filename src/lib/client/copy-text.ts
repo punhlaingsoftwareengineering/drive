@@ -45,10 +45,7 @@ export function copyTextFromInput(input: HTMLInputElement | HTMLTextAreaElement)
 /** Copy the `input` / `textarea` inside the same `.d-form-control` as `button`. */
 export function copyTextFromControlButton(button: HTMLElement): void {
 	const field = button.closest('.d-form-control')?.querySelector('input, textarea');
-	if (
-		!(field instanceof HTMLInputElement) &&
-		!(field instanceof HTMLTextAreaElement)
-	) {
+	if (!(field instanceof HTMLInputElement) && !(field instanceof HTMLTextAreaElement)) {
 		throw new Error('No copy field found');
 	}
 	copyTextFromInput(field);

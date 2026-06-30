@@ -74,8 +74,7 @@
 <div class="not-prose mx-auto max-w-4xl">
 	<h1 class="mb-2 text-3xl font-bold text-base-content">User manual</h1>
 	<p class="mb-10 text-lg text-base-content/70">
-		Learn how to use {appName()} day to day: organize files, collaborate, and tune the app to your
-		preferences.
+		Learn how to use {appName()} day to day: organize files, collaborate, and tune the app to your preferences.
 	</p>
 
 	<ul class="grid gap-3 sm:grid-cols-2">

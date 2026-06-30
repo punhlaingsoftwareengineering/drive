@@ -21,4 +21,3 @@ describe('pathWithoutBase', () => {
 		expect(pathWithoutBase('/other/home')).toBe('/other/home');
 	});
 });
-

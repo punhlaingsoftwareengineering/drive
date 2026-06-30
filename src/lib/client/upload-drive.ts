@@ -53,7 +53,11 @@ function postBinary(
 			reject(new Error(uploadErrorMessage(xhr.status, xhr.responseText)));
 		});
 		xhr.addEventListener('error', () => reject(new Error('Network error')));
-		xhr.open('POST', resolveAppPath(pathWithQuery));
+		xhr.open(
+			'POST',
+			resolveAppPath(pathWithQuery.split('?')[0] as '/api/drive/upload') +
+				(pathWithQuery.includes('?') ? '?' + pathWithQuery.split('?').slice(1).join('?') : '')
+		);
 		xhr.withCredentials = true;
 		xhr.setRequestHeader('Content-Type', 'application/octet-stream');
 		xhr.setRequestHeader('Accept', 'application/json');
@@ -73,10 +77,8 @@ function postChunk(
 	ok?: boolean;
 	created?: { id: string; name: string }[];
 }> {
-	return postBinary(
-		`/api/drive/upload/chunk${uploadQuery(query)}`,
-		chunk,
-		(loaded, total) => onPartProgress(loadedSoFar + loaded, fileTotal)
+	return postBinary(`/api/drive/upload/chunk${uploadQuery(query)}`, chunk, (loaded, total) =>
+		onPartProgress(loadedSoFar + loaded, fileTotal)
 	).then((text) => {
 		try {
 			return JSON.parse(text) as {

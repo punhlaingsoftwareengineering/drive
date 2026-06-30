@@ -156,8 +156,7 @@ export async function persistSealedUploadFromPath(
 	opts?: { teamId?: string | null }
 ): Promise<{ id: string; name: string }> {
 	const fileStat = await stat(sourcePath);
-	const originalSize =
-		typeof fileStat.size === 'bigint' ? Number(fileStat.size) : fileStat.size;
+	const originalSize = typeof fileStat.size === 'bigint' ? Number(fileStat.size) : fileStat.size;
 	assertWithinUploadLimit(originalSize);
 
 	const teamId = opts?.teamId ?? null;
@@ -229,7 +228,8 @@ export async function persistSealedUploadFromPath(
 		try {
 			const sealed = await sealFileStream(sourcePath, sealedTemp, { mime, originalSize });
 			baseInsert.isCompressed = sealed.isCompressed;
-			await TigrisUtil.upload(objectKey, createReadStream(sealedTemp), {
+			const sealedBuf = await readFile(sealedTemp);
+			await TigrisUtil.upload(objectKey, sealedBuf, {
 				contentType: 'application/octet-stream',
 				multipart: originalSize > 32 * 1024 * 1024
 			});

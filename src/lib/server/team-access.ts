@@ -12,7 +12,9 @@ export async function isTeamMember(userId: string, teamId: string): Promise<bool
 	return Boolean(m);
 }
 
-export async function listTeamsForUser(userId: string): Promise<Array<{ id: string; name: string }>> {
+export async function listTeamsForUser(
+	userId: string
+): Promise<Array<{ id: string; name: string }>> {
 	return db
 		.select({ id: TeamSchema.id, name: TeamSchema.name })
 		.from(TeamSchema)

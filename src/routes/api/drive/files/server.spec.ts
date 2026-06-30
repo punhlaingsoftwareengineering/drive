@@ -41,9 +41,7 @@ describe('GET /api/drive/files', () => {
 
 		const { GET } = await import('./+server');
 		const teamId = '9a3d5a6e-7f68-4f2a-9f7d-20e7a4c9e6d1';
-		const url = new URL(
-			`http://localhost/api/drive/files?storageProvider=local&teamId=${teamId}`
-		);
+		const url = new URL(`http://localhost/api/drive/files?storageProvider=local&teamId=${teamId}`);
 		const request = new Request(url);
 
 		await expect(GET({ request, url } as never)).rejects.toMatchObject({ status: 403 });
@@ -59,4 +57,3 @@ describe('GET /api/drive/files', () => {
 		await expect(GET({ request, url } as never)).rejects.toMatchObject({ status: 400 });
 	});
 });
-

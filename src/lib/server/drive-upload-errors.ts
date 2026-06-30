@@ -12,10 +12,7 @@ type UploadErrorContext = {
 
 function hasCode(e: unknown, code: string): boolean {
 	return (
-		typeof e === 'object' &&
-		e !== null &&
-		'code' in e &&
-		(e as { code?: string }).code === code
+		typeof e === 'object' && e !== null && 'code' in e && (e as { code?: string }).code === code
 	);
 }
 

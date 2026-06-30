@@ -22,7 +22,7 @@ async function importSubject() {
 	const devKeyMod = await import('$lib/server/developer-api-key');
 	return {
 		requireApiSession: mod.requireApiSession,
-		auth: authMod.auth as { api: { getSession: ReturnType<typeof vi.fn> } },
+		auth: authMod.auth as unknown as { api: { getSession: ReturnType<typeof vi.fn> } },
 		tryResolveUserFromDeveloperApiKey: devKeyMod.tryResolveUserFromDeveloperApiKey as ReturnType<
 			typeof vi.fn
 		>
@@ -88,4 +88,3 @@ describe('requireApiSession', () => {
 		expect(auth.api.getSession).toHaveBeenCalledTimes(1);
 	});
 });
-

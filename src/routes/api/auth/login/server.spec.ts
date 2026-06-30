@@ -19,7 +19,9 @@ describe('POST /api/auth/login', () => {
 
 	it('returns JSON {success:true} when Accept: application/json', async () => {
 		const remote = await import('$lib/remote/auth-remote/login.remote');
-		(remote.logInWithEmailAndPassword as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
+		(remote.logInWithEmailAndPassword as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(
+			undefined
+		);
 
 		const { POST } = await import('./+server');
 		const request = new Request('http://localhost/api/auth/login', {
@@ -69,7 +71,9 @@ describe('POST /api/auth/login', () => {
 
 	it('redirects (303) for non-JSON accept header', async () => {
 		const remote = await import('$lib/remote/auth-remote/login.remote');
-		(remote.logInWithEmailAndPassword as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(undefined);
+		(remote.logInWithEmailAndPassword as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(
+			undefined
+		);
 
 		const { POST } = await import('./+server');
 		const request = new Request('http://localhost/api/auth/login', {
@@ -81,4 +85,3 @@ describe('POST /api/auth/login', () => {
 		await expect(POST({ request } as never)).rejects.toMatchObject({ status: 303 });
 	});
 });
-

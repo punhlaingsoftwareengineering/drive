@@ -123,11 +123,11 @@ docker compose up --build
 
 SvelteKit verifies form POST origins. Set env vars to match how users reach the app:
 
-| Scenario | Required env |
-|----------|----------------|
-| Direct access (LAN/cloud VM, no proxy) | `ORIGIN=http://YOUR_IP:1025` |
-| Fly.io / cloud with TLS terminator | `ORIGIN=https://your-domain` + `PROTOCOL_HEADER` + `HOST_HEADER` (in `fly.toml`) |
-| nginx / Caddy / Traefik in front | `ORIGIN` + proxy headers; proxy must send `X-Forwarded-Proto` and `X-Forwarded-Host` |
+| Scenario                               | Required env                                                                         |
+| -------------------------------------- | ------------------------------------------------------------------------------------ |
+| Direct access (LAN/cloud VM, no proxy) | `ORIGIN=http://YOUR_IP:1025`                                                         |
+| Fly.io / cloud with TLS terminator     | `ORIGIN=https://your-domain` + `PROTOCOL_HEADER` + `HOST_HEADER` (in `fly.toml`)     |
+| nginx / Caddy / Traefik in front       | `ORIGIN` + proxy headers; proxy must send `X-Forwarded-Proto` and `X-Forwarded-Host` |
 
 Do **not** set `PROTOCOL_HEADER` / `HOST_HEADER` when accessing the container directly without a trusted reverse proxy.
 

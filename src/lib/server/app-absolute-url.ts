@@ -23,9 +23,7 @@ export function appAbsoluteUrlFromRequest(requestUrl: string, pathname: string):
 	const path = pathname.startsWith('/') ? pathname : `/${pathname}`;
 	const base = normalizeBasePath();
 	const configured =
-		import.meta.env.PROD &&
-		typeof env.ORIGIN === 'string' &&
-		env.ORIGIN.trim()
+		import.meta.env.PROD && typeof env.ORIGIN === 'string' && env.ORIGIN.trim()
 			? env.ORIGIN.trim().replace(/\/$/, '')
 			: '';
 	const origin = configured || new URL(requestUrl).origin;

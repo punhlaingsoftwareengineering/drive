@@ -27,4 +27,3 @@ describe('formatBytes', () => {
 		expect(formatBytes(1.5 * 1024 * 1024)).toBe('1.50 MB');
 	});
 });
-

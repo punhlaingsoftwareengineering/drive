@@ -7,8 +7,9 @@
 	import { storageProviderLabel } from '$lib/model/storage-provider';
 	import { registerDriveListReload } from '$lib/state/drive-refresh.svelte';
 	import { driveStorage } from '$lib/state/storage-provider.svelte';
-	import * as d3 from 'd3';
 	import { onMount } from 'svelte';
+
+	type D3Module = typeof import('d3');
 
 	type StatsPayload = {
 		storageProvider: StorageProviderId;
@@ -34,9 +35,13 @@
 	let barEl = $state<HTMLDivElement | null>(null);
 	let lineEl = $state<HTMLDivElement | null>(null);
 
-	const palette = d3.schemeTableau10 ?? d3.schemeCategory10;
+	let d3Api = $state<D3Module | null>(null);
+
+	const palette = $derived(d3Api?.schemeTableau10 ?? d3Api?.schemeCategory10 ?? []);
 
 	function drawStoragePie(el: HTMLElement, rows: StatsPayload['byCategory'], totalBytes: number) {
+		const d3 = d3Api;
+		if (!d3) return;
 		d3.select(el).selectAll('*').remove();
 		const w = Math.max(el.clientWidth, 280);
 		const h = Math.min(320, Math.max(240, w * 0.55));
@@ -102,6 +107,8 @@
 	}
 
 	function drawFilesBar(el: HTMLElement, rows: StatsPayload['byCategory']) {
+		const d3 = d3Api;
+		if (!d3) return;
 		d3.select(el).selectAll('*').remove();
 		const w = Math.max(el.clientWidth, 280);
 		const rowH = 28;
@@ -171,6 +178,8 @@
 	}
 
 	function drawActivityLine(el: HTMLElement, weeks: StatsPayload['activityByWeek']) {
+		const d3 = d3Api;
+		if (!d3) return;
 		d3.select(el).selectAll('*').remove();
 		const w = Math.max(el.clientWidth, 280);
 		const h = 260;
@@ -255,6 +264,7 @@
 	}
 
 	function redrawCharts(s: StatsPayload) {
+		if (!d3Api) return;
 		if (pieEl) drawStoragePie(pieEl, s.byCategory, s.summary.totalBytes);
 		if (barEl) drawFilesBar(barEl, s.byCategory);
 		if (lineEl) drawActivityLine(lineEl, s.activityByWeek);
@@ -290,20 +300,27 @@
 	}
 
 	onMount(() => {
+		void import('d3').then((mod) => {
+			d3Api = mod;
+		});
 		void loadStats();
 		return registerDriveListReload(() => void loadStats());
 	});
 
 	$effect(() => {
-		if (!browser || !stats || !pieEl || !barEl || !lineEl) return;
+		if (!browser || !stats || !pieEl || !barEl || !lineEl || !d3Api) return;
 
 		const run = () => redrawCharts(stats!);
 
 		run();
 		let frame = 0;
+		let debounceTimer: ReturnType<typeof setTimeout> | undefined;
 		const ro = new ResizeObserver(() => {
 			cancelAnimationFrame(frame);
-			frame = requestAnimationFrame(run);
+			clearTimeout(debounceTimer);
+			debounceTimer = setTimeout(() => {
+				frame = requestAnimationFrame(run);
+			}, 150);
 		});
 		ro.observe(pieEl);
 		ro.observe(barEl);
@@ -311,6 +328,7 @@
 
 		return () => {
 			cancelAnimationFrame(frame);
+			clearTimeout(debounceTimer);
 			ro.disconnect();
 		};
 	});

@@ -12,4 +12,3 @@ describe('resolveHref', () => {
 		expect(resolveHref('api/x')).toBe('/base/api/x');
 	});
 });
-

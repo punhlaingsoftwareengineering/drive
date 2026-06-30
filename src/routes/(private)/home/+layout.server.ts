@@ -100,7 +100,11 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 		if (!parsed.success) {
 			throw redirect(
 				303,
-				isSharedPage ? resolve('/home/shared') : teamRouteId ? resolve(`/home/team/${teamRouteId}`) : resolve('/home')
+				isSharedPage
+					? resolve('/home/shared')
+					: teamRouteId
+						? resolve(`/home/team/${teamRouteId}`)
+						: resolve('/home')
 			);
 		}
 

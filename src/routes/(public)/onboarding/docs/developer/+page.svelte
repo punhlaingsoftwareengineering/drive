@@ -36,8 +36,8 @@
 <div class="not-prose mx-auto max-w-4xl">
 	<h1 class="mb-2 text-3xl font-bold text-base-content">Developer</h1>
 	<p class="mb-10 text-lg text-base-content/70">
-		Integrate with {appName()} over HTTP: authenticate like the web app or with a developer API key,
-		then call the drive JSON and binary endpoints.
+		Integrate with {appName()} over HTTP: authenticate like the web app or with a developer API key, then
+		call the drive JSON and binary endpoints.
 	</p>
 
 	<ul class="grid gap-4 sm:grid-cols-3">

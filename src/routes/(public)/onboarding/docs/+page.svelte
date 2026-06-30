@@ -22,8 +22,8 @@
 	<div class="mb-10">
 		<h1 class="mb-3 text-3xl font-bold tracking-tight text-base-content">Documentation</h1>
 		<p class="text-lg leading-relaxed text-base-content/70">
-			Everything you need to use {appName()} effectively, integrate with the HTTP API, or contribute
-			to the codebase.
+			Everything you need to use {appName()} effectively, integrate with the HTTP API, or contribute to
+			the codebase.
 		</p>
 	</div>
 
@@ -80,7 +80,8 @@
 				and sign in.
 			</li>
 			<li>
-				Use <strong>Home</strong> for your files; use the sidebar for <strong>Shared</strong>, <strong>Teams</strong>,
+				Use <strong>Home</strong> for your files; use the sidebar for <strong>Shared</strong>,
+				<strong>Teams</strong>,
 				<strong>Trash</strong>, and more. Switch <strong>Storage</strong> in the top bar when needed.
 			</li>
 			<li>

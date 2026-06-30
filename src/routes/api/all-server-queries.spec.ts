@@ -68,52 +68,48 @@ describe('all important server queries (API +server.ts)', () => {
 		vi.clearAllMocks();
 	});
 
-	it(
-		'imports every API route module',
-		async () => {
-			// Import sequentially to reduce concurrent pressure and keep output deterministic.
-			const paths = [
-				'./auth/login/+server',
-				'./auth/logout/+server',
-				'./auth/social/+server',
-				'./auth/signup/+server',
-				'./auth/signup/send-otp/+server',
-				'./auth/signup/verify-otp/+server',
-				'./cron/purge-trash/+server',
-				'./developer/api-keys/+server',
-				'./developer/api-keys/[id]/+server',
-				'./developer/mode/+server',
-				'./drive/files/+server',
-				'./drive/files/[id]/+server',
-				'./drive/files/[id]/download/+server',
-				'./drive/files/[id]/public-link/+server',
-				'./drive/files/[id]/share/+server',
-				'./drive/folders/+server',
-				'./drive/recent/+server',
-				'./drive/shared/+server',
-				'./drive/stats/+server',
-				'./drive/trash/+server',
-				'./drive/upload/+server',
-				'./drive/upload/chunk/+server',
-				'./public/files/[token]/+server',
-				'./public/share/[token]/+server',
-				'./teams/+server',
-				'./teams/[teamId]/invites/+server'
-			];
+	it('imports every API route module', async () => {
+		// Import sequentially to reduce concurrent pressure and keep output deterministic.
+		const paths = [
+			'./auth/login/+server',
+			'./auth/logout/+server',
+			'./auth/social/+server',
+			'./auth/signup/+server',
+			'./auth/signup/send-otp/+server',
+			'./auth/signup/verify-otp/+server',
+			'./cron/purge-trash/+server',
+			'./developer/api-keys/+server',
+			'./developer/api-keys/[id]/+server',
+			'./developer/mode/+server',
+			'./drive/files/+server',
+			'./drive/files/[id]/+server',
+			'./drive/files/[id]/download/+server',
+			'./drive/files/[id]/public-link/+server',
+			'./drive/files/[id]/share/+server',
+			'./drive/folders/+server',
+			'./drive/recent/+server',
+			'./drive/shared/+server',
+			'./drive/stats/+server',
+			'./drive/trash/+server',
+			'./drive/upload/+server',
+			'./drive/upload/chunk/+server',
+			'./public/files/[token]/+server',
+			'./public/share/[token]/+server',
+			'./teams/+server',
+			'./teams/[teamId]/invites/+server'
+		];
 
-			const modules = [];
-			for (const p of paths) modules.push(await safeImport(p));
+		const modules = [];
+		for (const p of paths) modules.push(await safeImport(p));
 
-			// sanity: at least one handler exists in each module
-			for (const m of modules) {
-				const hasHandler = Object.keys(m).some((k) =>
-					['GET', 'POST', 'PUT', 'PATCH', 'DELETE'].includes(k)
-				);
-				expect(hasHandler).toBe(true);
-			}
-		},
-		20000
-	);
+		// sanity: at least one handler exists in each module
+		for (const m of modules) {
+			const hasHandler = Object.keys(m).some((k) =>
+				['GET', 'POST', 'PUT', 'PATCH', 'DELETE'].includes(k)
+			);
+			expect(hasHandler).toBe(true);
+		}
+	}, 20000);
 
 	it('protected drive routes fail fast with 401 when unauthenticated', async () => {
 		const protectedRoutes: Array<{ mod: string; method: string; event: any }> = [
@@ -157,4 +153,3 @@ describe('all important server queries (API +server.ts)', () => {
 		}
 	});
 });
-

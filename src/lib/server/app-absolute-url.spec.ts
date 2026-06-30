@@ -11,7 +11,9 @@ describe('appAbsoluteUrlFromRequest', () => {
 
 	it('normalizes missing leading slash on pathname', () => {
 		vi.stubEnv('BASE_URL', '/');
-		expect(appAbsoluteUrlFromRequest('https://example.com/', 'api/x')).toBe('https://example.com/api/x');
+		expect(appAbsoluteUrlFromRequest('https://example.com/', 'api/x')).toBe(
+			'https://example.com/api/x'
+		);
 	});
 
 	it('includes non-root BASE_URL without double slashes', () => {

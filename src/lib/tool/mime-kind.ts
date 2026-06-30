@@ -73,7 +73,10 @@ export function guessMimeFromFileName(fileName: string): string | undefined {
 }
 
 /** Pick a stored MIME for uploads: trust specific browser types, else guess, else octet-stream. */
-export function normalizeUploadMime(fileName: string, browserMime: string | null | undefined): string {
+export function normalizeUploadMime(
+	fileName: string,
+	browserMime: string | null | undefined
+): string {
 	const trimmed = (browserMime ?? '').trim().toLowerCase();
 	if (trimmed && !GENERIC_BROWSER_TYPES.has(trimmed)) {
 		return trimmed;

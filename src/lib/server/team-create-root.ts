@@ -38,9 +38,7 @@ async function applyTeamInvites(
 	const myEmail = actorEmail?.trim().toLowerCase() ?? '';
 	const uniqueInvites = [
 		...new Set(
-			inviteEmails
-				.map((e) => normalizeEmail(e))
-				.filter((e) => e.length > 0 && e !== myEmail)
+			inviteEmails.map((e) => normalizeEmail(e)).filter((e) => e.length > 0 && e !== myEmail)
 		)
 	];
 	let addedMembers = 0;
@@ -115,7 +113,13 @@ export async function createTeamWithRoot(params: {
 	name: string;
 	storageProvider: StorageProviderId;
 	inviteEmails: string[];
-}): Promise<{ teamId: string; name: string; rootFolderId: string; addedMembers: number; pendingInvites: number }> {
+}): Promise<{
+	teamId: string;
+	name: string;
+	rootFolderId: string;
+	addedMembers: number;
+	pendingInvites: number;
+}> {
 	const teamId = randomUUID();
 	const rootFolderId = randomUUID();
 	const sp = params.storageProvider;
@@ -192,10 +196,7 @@ export async function createTeamWithRoot(params: {
 		});
 	}
 
-	await db
-		.update(TeamSchema)
-		.set({ rootFolderId })
-		.where(eq(TeamSchema.id, teamId));
+	await db.update(TeamSchema).set({ rootFolderId }).where(eq(TeamSchema.id, teamId));
 
 	await db.insert(TeamMemberSchema).values({
 		teamId,

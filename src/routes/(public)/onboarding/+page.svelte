@@ -15,7 +15,10 @@
 </script>
 
 <section class="my-20 flex flex-col gap-20">
-	<section id="hero" class="my-12 flex flex-col items-center gap-10 lg:flex-row lg:justify-between lg:gap-12">
+	<section
+		id="hero"
+		class="my-12 flex flex-col items-center gap-10 lg:flex-row lg:justify-between lg:gap-12"
+	>
 		<div class="max-w-xl shrink-0">
 			<AppMarkIcon class="mb-4 size-20 text-[#DE1A58] sm:size-24" title={appName()} />
 			<h1 class="icon-font text-5xl font-black">Storage As A Service</h1>
@@ -49,8 +52,8 @@
 			<div class="d-card-body items-center text-center">
 				<h2 class="d-card-title">Local Drive</h2>
 				<p>
-					Keep files on your own machine or server. Pick local storage in the app and uploads land on
-					disk under your control—ideal for development, air‑gapped setups, or when you want zero
+					Keep files on your own machine or server. Pick local storage in the app and uploads land
+					on disk under your control—ideal for development, air‑gapped setups, or when you want zero
 					vendor lock‑in.
 				</p>
 			</div>
@@ -63,7 +66,8 @@
 				<h2 class="d-card-title">Cloud Storage</h2>
 				<p>
 					Plug in S3‑compatible object storage (for example Tigris) so blobs live in the cloud while
-					metadata stays in your database. Same UI and APIs—switch providers per environment or team.
+					metadata stays in your database. Same UI and APIs—switch providers per environment or
+					team.
 				</p>
 			</div>
 		</div>

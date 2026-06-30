@@ -32,4 +32,3 @@ describe('highlightSearchParts', () => {
 		expect(matches.every((p) => p.text === 'shared')).toBe(true);
 	});
 });
-

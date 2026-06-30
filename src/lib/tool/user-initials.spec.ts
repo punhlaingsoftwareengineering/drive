@@ -27,4 +27,3 @@ describe('getUserInitials', () => {
 		expect(getUserInitials({ name: '   ', email: '   ' })).toBe('?');
 	});
 });
-

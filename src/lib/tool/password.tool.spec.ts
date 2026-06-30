@@ -14,4 +14,3 @@ describe('togglePasswordVisibility', () => {
 		expect(value).toBe(false);
 	});
 });
-

@@ -6,4 +6,3 @@ describe('TRASH_RETENTION_DAYS', () => {
 		expect(TRASH_RETENTION_DAYS).toBe(30);
 	});
 });
-

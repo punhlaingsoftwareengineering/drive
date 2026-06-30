@@ -1,5 +1,6 @@
 import { env } from '$env/dynamic/private';
-import { createCipheriv, createDecipheriv, randomBytes, scryptSync, constants as cryptoConstants } from 'node:crypto';
+import { IN_MEMORY_SEAL_THRESHOLD_BYTES } from '$lib/server/drive-upload-limits';
+import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from 'node:crypto';
 import { createReadStream, createWriteStream } from 'node:fs';
 import { open } from 'node:fs/promises';
 import { pipeline } from 'node:stream/promises';
@@ -21,8 +22,7 @@ const V2_HEADER_BYTES = 4 + 1 + 8 + 12; // magic + flags + uint64 size + iv
 const V2_TRAILER_BYTES = 16; // GCM tag at end
 
 function getKey(): Buffer {
-	const secret =
-		env.DRIVE_ENCRYPTION_KEY ?? env.FILE_ENCRYPTION_KEY ?? env.BETTER_AUTH_SECRET;
+	const secret = env.DRIVE_ENCRYPTION_KEY ?? env.FILE_ENCRYPTION_KEY ?? env.BETTER_AUTH_SECRET;
 	if (!secret) {
 		throw new Error(
 			'Set DRIVE_ENCRYPTION_KEY, FILE_ENCRYPTION_KEY, or BETTER_AUTH_SECRET for at-rest file encryption'
@@ -71,14 +71,7 @@ function sealEncryptOnlyBuffer(plain: Buffer): { buffer: Buffer; originalSize: n
 	const flags = FLAG_ENC;
 	const origSizeBuf = Buffer.allocUnsafe(8);
 	writeOrigSizeV2(origSizeBuf, plain.length);
-	const buffer = Buffer.concat([
-		MAGIC_V2,
-		Buffer.from([flags]),
-		origSizeBuf,
-		iv,
-		enc,
-		tag
-	]);
+	const buffer = Buffer.concat([MAGIC_V2, Buffer.from([flags]), origSizeBuf, iv, enc, tag]);
 	return { buffer, originalSize: plain.length };
 }
 
@@ -121,7 +114,7 @@ export async function sealFileStream(
 	opts: { mime?: string; originalSize: number }
 ): Promise<{ originalSize: number; isCompressed: boolean }> {
 	const compress =
-		shouldCompressMime(opts.mime ?? '') && opts.originalSize <= cryptoConstants.MAX_LENGTH;
+		shouldCompressMime(opts.mime ?? '') && opts.originalSize <= IN_MEMORY_SEAL_THRESHOLD_BYTES;
 	if (compress) {
 		const { readFile } = await import('node:fs/promises');
 		const plain = await readFile(inputPath);

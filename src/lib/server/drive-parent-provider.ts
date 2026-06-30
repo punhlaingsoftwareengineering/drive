@@ -9,9 +9,7 @@ import { z } from 'zod';
 
 async function lookupParentFolder(
 	parentId: string,
-	scope:
-		| { kind: 'user'; ownerId: string }
-		| { kind: 'team'; teamId: string; memberUserId: string }
+	scope: { kind: 'user'; ownerId: string } | { kind: 'team'; teamId: string; memberUserId: string }
 ) {
 	if (scope.kind === 'team' && !(await isTeamMember(scope.memberUserId, scope.teamId))) {
 		throw error(403, 'Forbidden');
@@ -44,9 +42,7 @@ async function lookupParentFolder(
 export async function assertParentFolderStorageProvider(
 	storageProvider: StorageProviderId,
 	parentIdRaw: unknown,
-	scope:
-		| { kind: 'user'; ownerId: string }
-		| { kind: 'team'; teamId: string; memberUserId: string }
+	scope: { kind: 'user'; ownerId: string } | { kind: 'team'; teamId: string; memberUserId: string }
 ): Promise<void> {
 	if (parentIdRaw === undefined || parentIdRaw === null || parentIdRaw === '') return;
 	if (typeof parentIdRaw !== 'string') throw error(400, 'Invalid parent folder');

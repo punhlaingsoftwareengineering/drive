@@ -1,9 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-	effectiveContentType,
-	guessMimeFromFileName,
-	normalizeUploadMime
-} from './mime-kind';
+import { effectiveContentType, guessMimeFromFileName, normalizeUploadMime } from './mime-kind';
 
 describe('mime-kind', () => {
 	it('guesses common extensions', () => {

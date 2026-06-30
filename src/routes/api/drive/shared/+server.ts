@@ -103,9 +103,7 @@ export const GET: RequestHandler = async ({ request, url }) => {
 				name: r.name,
 				itemType: r.itemType,
 				sizeBytes:
-					r.itemType === 'folder'
-						? (subtreeBytes.get(r.id) ?? 0)
-						: sizeBytesJson(r.sizeBytes),
+					r.itemType === 'folder' ? (subtreeBytes.get(r.id) ?? 0) : sizeBytesJson(r.sizeBytes),
 				updatedAt: r.updatedAt.toISOString(),
 				storageProvider: r.storageProvider,
 				isPinned: r.isPinned,
@@ -161,9 +159,7 @@ export const GET: RequestHandler = async ({ request, url }) => {
 			name: r.name,
 			itemType: r.itemType,
 			sizeBytes:
-				r.itemType === 'folder'
-					? (subtreeBytes.get(r.id) ?? 0)
-					: sizeBytesJson(r.sizeBytes),
+				r.itemType === 'folder' ? (subtreeBytes.get(r.id) ?? 0) : sizeBytesJson(r.sizeBytes),
 			updatedAt: r.updatedAt.toISOString(),
 			storageProvider: r.storageProvider,
 			isPinned: r.isPinned,

@@ -1,4 +1,7 @@
-import { sumSubtreeFileBytesForFolders, sumSubtreeFileBytesForFoldersTeam } from '$lib/server/drive-folder-size';
+import {
+	sumSubtreeFileBytesForFolders,
+	sumSubtreeFileBytesForFoldersTeam
+} from '$lib/server/drive-folder-size';
 import { sizeBytesJson } from '$lib/server/drive-size-json';
 import { requireApiSession } from '$lib/server/require-api-session';
 import { db } from '$lib/server/db';
@@ -86,9 +89,7 @@ export const GET: RequestHandler = async ({ request, url }) => {
 		})
 		.from(MainFileSchema)
 		.innerJoin(AuthUserSchema, eq(MainFileSchema.ownerId, AuthUserSchema.id))
-		.where(
-			and(personalOrTeam, isNull(MainFileSchema.trashedAt), parentFilter)
-		);
+		.where(and(personalOrTeam, isNull(MainFileSchema.trashedAt), parentFilter));
 
 	const folderIds = rows.filter((r) => r.itemType === 'folder').map((r) => r.id);
 	const subtreeBytes = teamId

@@ -18,8 +18,8 @@
 	const isImage = $derived(
 		Boolean(
 			share &&
-				share.item.itemType === 'file' &&
-				fileLooksLikeImage(share.item.mimeType, share.item.name)
+			share.item.itemType === 'file' &&
+			fileLooksLikeImage(share.item.mimeType, share.item.name)
 		)
 	);
 	const rawUrl = $derived(share ? resolveHref(`/api/public/files/${share.token}`) : '');
@@ -103,7 +103,8 @@
 
 				<div class="flex flex-wrap items-center gap-2">
 					<a class="d-btn d-btn-primary" href={rawUrl}>Download</a>
-					<a class="d-btn d-btn-ghost" href={resolve('/(public)/onboarding')}>Back to {appName()}</a>
+					<a class="d-btn d-btn-ghost" href={resolve('/(public)/onboarding')}>Back to {appName()}</a
+					>
 				</div>
 			{/if}
 		</div>

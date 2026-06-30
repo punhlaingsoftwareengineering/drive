@@ -105,9 +105,8 @@ export const GET: RequestHandler = async ({ request, url }) => {
 		.orderBy(desc(MainFileSchema.createdAt))
 		.limit(PER_BRANCH);
 
-	const sharedRows =
-		email ?
-			await db
+	const sharedRows = email
+		? await db
 				.select({
 					...fileFields,
 					shareCreatedAt: MainFileShareSchema.createdAt,
@@ -140,10 +139,7 @@ export const GET: RequestHandler = async ({ request, url }) => {
 		.innerJoin(AuthUserSchema, eq(MainFileSchema.ownerId, AuthUserSchema.id))
 		.innerJoin(
 			TeamMemberSchema,
-			and(
-				eq(TeamMemberSchema.teamId, MainFileSchema.teamId),
-				eq(TeamMemberSchema.userId, userId)
-			)
+			and(eq(TeamMemberSchema.teamId, MainFileSchema.teamId), eq(TeamMemberSchema.userId, userId))
 		)
 		.innerJoin(TeamSchema, eq(MainFileSchema.teamId, TeamSchema.id))
 		.where(

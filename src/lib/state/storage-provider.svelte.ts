@@ -11,7 +11,12 @@ export const driveStorage = $state<{ current: StorageProviderId }>({ current: 'l
 export function hydrateStorageProviderFromStorage(): void {
 	if (typeof localStorage === 'undefined') return;
 	const p = parseStorageProvider(localStorage.getItem(STORAGE_PROVIDER_STORAGE_KEY));
-	if (p) driveStorage.current = p;
+	if (p && p !== driveStorage.current) {
+		driveStorage.current = p;
+		bumpDriveListRefresh();
+	} else if (p) {
+		driveStorage.current = p;
+	}
 }
 
 export function setCurrentStorageProvider(v: StorageProviderId): void {
