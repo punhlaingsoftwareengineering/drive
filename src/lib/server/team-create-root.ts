@@ -6,6 +6,7 @@ import {
 	TeamSchema
 } from '$lib/server/db/schema/main-schema/team.schema';
 import { findUsersByEmails, isTeamMember } from '$lib/server/team-access';
+import { uniqueTeamSlug } from '$lib/server/team-slug';
 import {
 	localPathNewFolderAtRoot,
 	tigrisKeyNewFolderAtRootTeam
@@ -116,6 +117,7 @@ export async function createTeamWithRoot(params: {
 }): Promise<{
 	teamId: string;
 	name: string;
+	slug: string;
 	rootFolderId: string;
 	addedMembers: number;
 	pendingInvites: number;
@@ -124,6 +126,7 @@ export async function createTeamWithRoot(params: {
 	const rootFolderId = randomUUID();
 	const sp = params.storageProvider;
 	const cleanName = safeTeamName(params.name);
+	const slug = await uniqueTeamSlug(cleanName);
 	const myEmail = params.creatorEmail?.trim().toLowerCase() ?? '';
 
 	if (sp === 'local') {
@@ -134,6 +137,7 @@ export async function createTeamWithRoot(params: {
 		await db.insert(TeamSchema).values({
 			id: teamId,
 			name: cleanName,
+			slug,
 			createdByUserId: params.creatorId,
 			rootFolderId: null,
 			storageProvider: sp
@@ -171,6 +175,7 @@ export async function createTeamWithRoot(params: {
 		await db.insert(TeamSchema).values({
 			id: teamId,
 			name: cleanName,
+			slug,
 			createdByUserId: params.creatorId,
 			rootFolderId: null,
 			storageProvider: sp
@@ -211,5 +216,5 @@ export async function createTeamWithRoot(params: {
 		params.inviteEmails
 	);
 
-	return { teamId, name: cleanName, rootFolderId, addedMembers, pendingInvites };
+	return { teamId, name: cleanName, slug, rootFolderId, addedMembers, pendingInvites };
 }

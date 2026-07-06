@@ -72,7 +72,11 @@
 		}
 	}
 
-	async function runPatch(id: string, body: PatchDriveFileBody, successMsg?: string) {
+	async function runPatch(
+		id: string,
+		body: PatchDriveFileBody,
+		successMsg: string | undefined = undefined
+	) {
 		busyId = id;
 		try {
 			await patchDriveFile(id, body);

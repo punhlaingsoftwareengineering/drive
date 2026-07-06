@@ -4,7 +4,7 @@
 
 In **Home**, open the **NEW** menu in the sidebar and choose **Upload file**. A dialog lets you pick one or more files; uploads run against the **storage provider** currently selected in the top bar.
 
-Large uploads may use chunked upload endpoints on the server; progress is shown in the dialog. All file types are accepted — MIME is inferred from the filename when the browser sends an empty type. If an upload fails, the toast shows the JSON error message from the API.
+Large uploads may use chunked upload endpoints on the server; progress is shown in the dialog. **All file types are accepted**, including custom extensions (for example `.blend`, `.myext`, or any dotted suffix). There is no allowlist or blocklist — uploads are limited only by size and auth. When the browser sends a generic type, MIME is inferred from the filename: known extensions map to standard types, unknown extensions use `application/x-{ext}`, and extensionless files use `application/octet-stream`. If an upload fails, the toast shows the JSON error message from the API.
 
 ## Downloads
 

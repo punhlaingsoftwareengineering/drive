@@ -1,46 +1,82 @@
 # REST API reference
 
-This table reflects handlers under `src/routes/api` as of the current codebase. **Auth** summarizes how the route authenticates the caller.
+Quick-scan catalog of handlers under `src/routes/api`. For request/response schemas, see the detail pages linked in the **Detail** column.
 
-| Method   | Path                                | Auth                   | Description                                                                        |
-| -------- | ----------------------------------- | ---------------------- | ---------------------------------------------------------------------------------- |
-| `POST`   | `/api/auth/login`                   | None                   | Email/password login; sets session.                                                |
-| `POST`   | `/api/auth/logout`                  | Session                | End session.                                                                       |
-| `POST`   | `/api/auth/signup`                  | Varies                 | Sign-up flow.                                                                      |
-| `POST`   | `/api/auth/signup/send-otp`         | Varies                 | Send OTP.                                                                          |
-| `POST`   | `/api/auth/signup/verify-otp`       | Varies                 | Verify OTP.                                                                        |
-| `POST`   | `/api/auth/social`                  | Varies                 | Social auth start/callback helper.                                                 |
-| `GET`    | `/api/auth/social`                  | Varies                 | Social auth redirect handling.                                                     |
-| `GET`    | `/api/teams`                        | Cookie or API key      | List teams the current user belongs to.                                            |
-| `POST`   | `/api/teams`                        | Cookie or API key      | Create a team (name, optional `storageProvider`, `inviteEmails`).                  |
-| `GET`    | `/api/drive/files`                  | Cookie or API key      | List files/folders; query `storageProvider`, `parentId` / `folder`, `teamId`.      |
-| `POST`   | `/api/drive/folders`                | Cookie or API key      | Create folder (JSON body).                                                         |
-| `PATCH`  | `/api/drive/files/[id]`             | Cookie or API key      | Update pin, star, name, color, trash flag.                                         |
-| `DELETE` | `/api/drive/files/[id]`             | Cookie or API key      | Permanently delete an item that is **already in trash**.                           |
-| `GET`    | `/api/drive/files/[id]/download`    | Cookie or API key      | Download file or folder archive.                                                   |
-| `GET`    | `/api/drive/files/[id]/public-link` | Cookie or API key      | Public link metadata: `shareUrl`, `fileDirectUrl` (files only).                    |
-| `POST`   | `/api/drive/files/[id]/public-link` | Cookie or API key      | Create (or refresh) public link.                                                   |
-| `DELETE` | `/api/drive/files/[id]/public-link` | Cookie or API key      | Revoke public link.                                                                |
-| `POST`   | `/api/drive/files/[id]/share`       | Cookie or API key      | Share file with another user.                                                      |
-| `GET`    | `/api/drive/shared`                 | Cookie or API key      | List shared-with-me content.                                                       |
-| `GET`    | `/api/drive/trash`                  | Cookie or API key      | List trashed items.                                                                |
-| `GET`    | `/api/drive/stats`                  | Cookie or API key      | Storage / usage stats.                                                             |
-| `POST`   | `/api/drive/upload`                 | Cookie or API key      | Upload file (binary `application/octet-stream`, metadata in query; files ≤ 8 MiB). |
-| `POST`   | `/api/drive/upload/chunk`           | Cookie or API key      | Chunked binary upload (8 MiB chunks; `MAX_UPLOAD_BYTES=0` = unlimited total size). |
-| `GET`    | `/api/developer/mode`               | Cookie only            | Read developer mode enabled flag.                                                  |
-| `POST`   | `/api/developer/mode`               | Cookie only            | Set developer mode `{ "enabled": boolean }`.                                       |
-| `GET`    | `/api/developer/api-keys`           | Cookie only            | List keys (masked `znldv_…`); `developerModeRequired` if off.                      |
-| `POST`   | `/api/developer/api-keys`           | Cookie only + dev mode | Create key; body `{ "name": string }`.                                             |
-| `DELETE` | `/api/developer/api-keys/[id]`      | Cookie only + dev mode | Revoke key.                                                                        |
-| `GET`    | `/api/public/share/[token]`         | None                   | Public metadata JSON for share preview page.                                       |
-| `GET`    | `/api/public/files/[token]`         | None                   | Stream file or folder ZIP for valid token.                                         |
-| `POST`   | `/api/cron/purge-trash`             | `Bearer CRON_SECRET`   | Purge expired trash (scheduled job).                                               |
+**Auth legend:** `Cookie or key` = `requireApiSession`; `Cookie only` = browser session required; `None` = no user auth; `CRON_SECRET` = ops bearer.
+
+## Auth
+
+| Method | Path | Auth | Content-Type | Detail |
+| ------ | ---- | ---- | ------------ | ------ |
+| `POST` | `/api/auth/login` | None | JSON | [Other endpoints](./other-endpoints#auth) |
+| `POST` | `/api/auth/logout` | Session | — | [Other endpoints](./other-endpoints#auth) |
+| `POST` | `/api/auth/signup` | Varies | JSON | [Other endpoints](./other-endpoints#auth) |
+| `POST` | `/api/auth/signup/send-otp` | Varies | JSON | [Other endpoints](./other-endpoints#auth) |
+| `POST` | `/api/auth/signup/verify-otp` | Varies | JSON | [Other endpoints](./other-endpoints#auth) |
+| `POST` | `/api/auth/social` | Varies | JSON | [Other endpoints](./other-endpoints#auth) |
+| `GET` | `/api/auth/social` | Varies | — | [Other endpoints](./other-endpoints#auth) |
+
+## Teams
+
+| Method | Path | Auth | Content-Type | Detail |
+| ------ | ---- | ---- | ------------ | ------ |
+| `GET` | `/api/teams` | Cookie or key | — | [Teams API](./teams-api#get-apiteams) |
+| `POST` | `/api/teams` | Cookie or key | JSON | [Teams API](./teams-api#post-apiteams) |
+| `POST` | `/api/teams/[teamId]/invites` | Cookie or key | JSON | [Teams API](./teams-api#post-apiteamsteamidinvites) |
+
+## Drive — browse and mutate
+
+| Method | Path | Auth | Content-Type | Detail |
+| ------ | ---- | ---- | ------------ | ------ |
+| `GET` | `/api/drive/files` | Cookie or key | — | [Drive API](./drive-api#get-apidrivefiles) |
+| `POST` | `/api/drive/folders` | Cookie or key | JSON | [Drive API](./drive-api#post-apidrivefolders) |
+| `PATCH` | `/api/drive/files/[id]` | Cookie or key | JSON | [Drive API](./drive-api#patch-apidrivefilesid) |
+| `DELETE` | `/api/drive/files/[id]` | Cookie or key | — | [Drive API](./drive-api#delete-apidrivefilesid) |
+| `POST` | `/api/drive/files/reorder` | Cookie or key | JSON | [Drive API](./drive-api#post-apidrivefilesreorder) |
+| `GET` | `/api/drive/files/[id]/download` | Cookie or key | — | [Drive API](./drive-api#get-apidrivefilesiddownload) |
+| `GET` | `/api/drive/files/[id]/public-link` | Cookie or key | — | [Drive API](./drive-api#public-link) |
+| `POST` | `/api/drive/files/[id]/public-link` | Cookie or key | — | [Drive API](./drive-api#public-link) |
+| `DELETE` | `/api/drive/files/[id]/public-link` | Cookie or key | — | [Drive API](./drive-api#public-link) |
+| `POST` | `/api/drive/files/[id]/share` | Cookie or key | JSON | [Drive API](./drive-api#post-apidrivefilesidshare) |
+
+## Drive — views and upload
+
+| Method | Path | Auth | Content-Type | Detail |
+| ------ | ---- | ---- | ------------ | ------ |
+| `GET` | `/api/drive/shared` | Cookie or key | — | [Drive API](./drive-api#get-apidriveshared) |
+| `GET` | `/api/drive/trash` | Cookie or key | — | [Drive API](./drive-api#get-apidrivetrash) |
+| `GET` | `/api/drive/recent` | Cookie or key | — | [Drive API](./drive-api#get-apidriverecent) |
+| `GET` | `/api/drive/stats` | Cookie or key | — | [Drive API](./drive-api#get-apidrivestats) |
+| `POST` | `/api/drive/upload` | Cookie or key | `application/octet-stream` | [Drive API](./drive-api#post-apidriveupload) |
+| `POST` | `/api/drive/upload/chunk` | Cookie or key | `application/octet-stream` | [Drive API](./drive-api#post-apidriveuploadchunk) |
+
+## Developer admin
+
+| Method | Path | Auth | Content-Type | Detail |
+| ------ | ---- | ---- | ------------ | ------ |
+| `GET` | `/api/developer/mode` | Cookie only | — | [Other endpoints](./other-endpoints#developer-admin) |
+| `POST` | `/api/developer/mode` | Cookie only | JSON | [Other endpoints](./other-endpoints#developer-admin) |
+| `GET` | `/api/developer/api-keys` | Cookie only | — | [Other endpoints](./other-endpoints#developer-admin) |
+| `POST` | `/api/developer/api-keys` | Cookie only + dev mode | JSON | [Other endpoints](./other-endpoints#developer-admin) |
+| `DELETE` | `/api/developer/api-keys/[id]` | Cookie only + dev mode | — | [Other endpoints](./other-endpoints#developer-admin) |
+
+## Public and cron
+
+| Method | Path | Auth | Content-Type | Detail |
+| ------ | ---- | ---- | ------------ | ------ |
+| `GET` | `/api/public/share/[token]` | None | — | [Other endpoints](./other-endpoints#public) |
+| `GET` | `/api/public/files/[token]` | None | — | [Other endpoints](./other-endpoints#public) |
+| `POST` | `/api/cron/purge-trash` | `CRON_SECRET` | — | [Other endpoints](./other-endpoints#cron) |
 
 ## Share URL shape
 
-The human-facing preview lives at `/<token>` (root of the site). Direct download uses `/api/public/files/<token>`.
+The human-facing preview lives at `{ORIGIN}/<token>` (site root). Direct download uses `{ORIGIN}/api/public/files/<token>`.
 
 ## Related
 
-- [Authentication](./authentication) — Bearer, `X-API-Key`, and cookie-only routes.
-- [Errors](./errors) — status codes you should handle.
+- [Getting started](./getting-started)
+- [Authentication](./authentication)
+- [Drive API](./drive-api)
+- [Teams API](./teams-api)
+- [Workflows](./workflows)
+- [Errors](./errors)

@@ -1,7 +1,11 @@
 import { TRASH_RETENTION_DAYS } from '$lib/server/drive-trash-constants';
 import { sizeBytesJson } from '$lib/server/drive-size-json';
 import { requireApiSession } from '$lib/server/require-api-session';
-import { sumSubtreeFileBytesForTrashedFolderRows } from '$lib/server/drive-folder-size';
+import {
+	sumSubtreeFileBytesForTrashedFolderRows,
+	sumSubtreeFileBytesForTrashedFolderRowsTeam
+} from '$lib/server/drive-folder-size';
+import { resolveTeamApiContext } from '$lib/server/team-api-scope';
 import { db } from '$lib/server/db';
 import { AuthUserSchema } from '$lib/server/db/schema/auth-schema/auth.schema';
 import { MainFileSchema } from '$lib/server/db/schema/main-schema/main.schema';
@@ -17,17 +21,32 @@ function ownerDisplayName(name: string | null | undefined, email: string): strin
 
 export const GET: RequestHandler = async ({ request, url }) => {
 	const session = await requireApiSession(request);
+	const teamCtx = await resolveTeamApiContext(session.user.id, url);
 
 	const raw = url.searchParams.get('storageProvider') ?? 'local';
 	if (!STORAGE_PROVIDERS.includes(raw as StorageProviderId)) {
 		throw error(400, 'Invalid storage provider');
 	}
-	const storageProvider = raw as StorageProviderId;
+	const storageProvider = teamCtx?.storageProvider ?? (raw as StorageProviderId);
+
+	const scopeFilter = teamCtx
+		? and(
+				eq(MainFileSchema.teamId, teamCtx.teamId),
+				eq(MainFileSchema.storageProvider, storageProvider),
+				isNotNull(MainFileSchema.trashedAt)
+			)
+		: and(
+				eq(MainFileSchema.ownerId, session.user.id),
+				isNull(MainFileSchema.teamId),
+				eq(MainFileSchema.storageProvider, storageProvider),
+				isNotNull(MainFileSchema.trashedAt)
+			);
 
 	const rows = await db
 		.select({
 			id: MainFileSchema.id,
 			ownerId: MainFileSchema.ownerId,
+			teamId: MainFileSchema.teamId,
 			name: MainFileSchema.name,
 			itemType: MainFileSchema.itemType,
 			sizeBytes: MainFileSchema.sizeBytes,
@@ -43,24 +62,25 @@ export const GET: RequestHandler = async ({ request, url }) => {
 		})
 		.from(MainFileSchema)
 		.innerJoin(AuthUserSchema, eq(MainFileSchema.ownerId, AuthUserSchema.id))
-		.where(
-			and(
-				eq(MainFileSchema.ownerId, session.user.id),
-				isNull(MainFileSchema.teamId),
-				eq(MainFileSchema.storageProvider, storageProvider),
-				isNotNull(MainFileSchema.trashedAt)
-			)
-		)
+		.where(scopeFilter)
 		.orderBy(desc(MainFileSchema.trashedAt));
 
 	const folderRows = rows.filter((r) => r.itemType === 'folder');
-	const subtreeBytes = await sumSubtreeFileBytesForTrashedFolderRows(
-		folderRows.map((r) => ({
-			id: r.id,
-			ownerId: r.ownerId,
-			storageProvider: r.storageProvider
-		}))
-	);
+	const subtreeBytes = teamCtx
+		? await sumSubtreeFileBytesForTrashedFolderRowsTeam(
+				folderRows.map((r) => ({
+					id: r.id,
+					teamId: teamCtx.teamId,
+					storageProvider: r.storageProvider as StorageProviderId
+				}))
+			)
+		: await sumSubtreeFileBytesForTrashedFolderRows(
+				folderRows.map((r) => ({
+					id: r.id,
+					ownerId: r.ownerId,
+					storageProvider: r.storageProvider as StorageProviderId
+				}))
+			);
 
 	return json({
 		trashRetentionDays: TRASH_RETENTION_DAYS,

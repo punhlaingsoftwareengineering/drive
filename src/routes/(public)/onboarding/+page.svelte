@@ -4,12 +4,9 @@
 	import { appName } from '$lib/app-name';
 	import { localizeHref } from '$lib/paraglide/runtime';
 	import {
-		LucideArchive,
 		LucideCable,
 		LucideCloud,
-		LucideHardDrive,
-		LucideStar,
-		LucideUsers
+		LucideHardDrive
 	} from '@lucide/svelte';
 	import { resolve } from '$app/paths';
 </script>
@@ -17,12 +14,13 @@
 <section class="my-20 flex flex-col gap-20">
 	<section
 		id="hero"
-		class="my-12 flex flex-col items-center gap-10 lg:flex-row lg:justify-between lg:gap-12"
+		class="my-12 grid items-center gap-12 lg:grid-cols-2 lg:gap-16"
 	>
-		<div class="max-w-xl shrink-0">
-			<AppMarkIcon class="mb-4 size-20 text-[#DE1A58] sm:size-24" title={appName()} />
-			<h1 class="icon-font text-5xl font-black">Storage As A Service</h1>
-			<p class="my-ft-lead">a portable service that integrates into your workflow.</p>
+		<div class="max-w-xl">
+			<h1 class="icon-font text-3xl font-black leading-tight tracking-tight sm:text-4xl">
+				Storage As A Service
+			</h1>
+			<p class="my-ft-lead mt-4">a portable service that integrates into your workflow.</p>
 
 			<div class="mt-10 flex flex-wrap gap-3 sm:gap-5">
 				<a class="d-btn d-btn-primary" href={resolve('/(private)/home')}>Get Started</a>
@@ -37,9 +35,17 @@
 				</a>
 			</div>
 		</div>
-		<div class="min-w-0 flex-1">
-			<OnboardingHeroCarousel />
+
+		<div class="flex justify-center lg:justify-end">
+			<AppMarkIcon
+				class="size-48 text-[#DE1A58] sm:size-64 lg:size-80 xl:size-96"
+				title={appName()}
+			/>
 		</div>
+	</section>
+
+	<section class="mt-8">
+		<OnboardingHeroCarousel />
 	</section>
 
 	<div class="my-ft-body-lg d-divider">Features</div>
@@ -85,35 +91,4 @@
 			</div>
 		</div>
 	</section>
-
-	<div class="my-ft-body-lg d-divider">Stats</div>
-
-	<div class="d-stats bg-base-100 py-5">
-		<div class="d-stat">
-			<div class="d-stat-figure text-secondary">
-				<LucideUsers class="size-12 text-primary" />
-			</div>
-			<div class="d-stat-title">Users</div>
-			<div class="d-stat-value">31K</div>
-			<div class="d-stat-desc">Jan 1st - Feb 1st</div>
-		</div>
-
-		<div class="d-stat">
-			<div class="d-stat-figure text-secondary">
-				<LucideArchive class="size-12 text-secondary" />
-			</div>
-			<div class="d-stat-title">Usage</div>
-			<div class="d-stat-value">4,200</div>
-			<div class="d-stat-desc">↗︎ 400 (22%)</div>
-		</div>
-
-		<div class="d-stat">
-			<div class="d-stat-figure text-secondary">
-				<LucideStar class="size-12 text-info" />
-			</div>
-			<div class="d-stat-title">GitHub Stars</div>
-			<div class="d-stat-value">1,200</div>
-			<div class="d-stat-desc">↘︎ 90 (14%)</div>
-		</div>
-	</div>
 </section>

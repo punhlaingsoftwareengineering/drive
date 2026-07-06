@@ -30,6 +30,31 @@ body {
 	}
 }
 
+/* Home shell: fixed sidebar on desktop, scrollable main content only */
+.my-drive-shell {
+	--drive-navbar-height: 4rem;
+	--drive-sidebar-width: 16rem;
+
+	.my-main {
+		overflow: hidden;
+	}
+
+	@media (width >= 1024px) {
+		.d-drawer-open > .d-drawer-toggle ~ .d-drawer-side {
+			position: fixed;
+			top: var(--drive-navbar-height);
+			height: calc(100dvh - var(--drive-navbar-height));
+			max-height: calc(100dvh - var(--drive-navbar-height));
+			overflow: hidden;
+		}
+
+		.d-drawer-open .d-drawer-content {
+			margin-inline-start: var(--drive-sidebar-width);
+			max-height: calc(100dvh - var(--drive-navbar-height));
+		}
+	}
+}
+
 .my-dotted-background-teal {
 	display: flex;
 

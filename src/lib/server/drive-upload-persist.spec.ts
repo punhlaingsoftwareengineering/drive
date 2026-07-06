@@ -25,4 +25,19 @@ describe('safeUploadFileName', () => {
 	it('returns unnamed for empty input', () => {
 		expect(safeUploadFileName('   ')).toBe('unnamed');
 	});
+
+	it('preserves custom extension filenames', () => {
+		expect(safeUploadFileName('release.v2.backup')).toBe('release.v2.backup');
+		expect(safeUploadFileName('data.myext')).toBe('data.myext');
+		expect(safeUploadFileName('Makefile')).toBe('Makefile');
+		expect(safeUploadFileName('.env')).toBe('.env');
+		expect(safeUploadFileName('.gitignore')).toBe('.gitignore');
+	});
+
+	it('preserves custom extension when truncating', () => {
+		const long = 'a'.repeat(300) + '.myext';
+		const result = safeUploadFileName(long);
+		expect(result.endsWith('.myext')).toBe(true);
+		expect(result.length).toBeLessThanOrEqual(220);
+	});
 });

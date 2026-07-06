@@ -12,6 +12,7 @@ import {
 } from '$lib/server/drive-storage-layout';
 import { db } from '$lib/server/db';
 import { MainFileSchema } from '$lib/server/db/schema/main-schema/main.schema';
+import { nextSortOrderInParent } from '$lib/server/drive-sort-order';
 import { localTeamUploadDir, localUserUploadDir } from '$lib/server/local-drive-path';
 import { TigrisUtil } from '$lib/service/tigris.service.svelte';
 import type { StorageProviderId } from '$lib/model/storage-provider';
@@ -62,6 +63,12 @@ export const POST: RequestHandler = async ({ request }) => {
 		: await resolveParentFolderForUser(userId, provider, parsed.data.parentId);
 	const id = randomUUID();
 	const teamIdVal = teamId ?? null;
+	const sortOrder = await nextSortOrderInParent(
+		parentFolder?.id ?? null,
+		teamId
+			? { kind: 'team', teamId, storageProvider: provider }
+			: { kind: 'user', ownerId: userId, storageProvider: provider }
+	);
 
 	if (provider === 'local') {
 		const userDir = teamId ? localTeamUploadDir(teamId) : localUserUploadDir(userId);
@@ -86,7 +93,8 @@ export const POST: RequestHandler = async ({ request }) => {
 			trashedAt: null,
 			isEncrypted: false,
 			isCompressed: false,
-			color: null
+			color: null,
+			sortOrder
 		});
 	} else {
 		const objectKey = parentFolder
@@ -121,7 +129,8 @@ export const POST: RequestHandler = async ({ request }) => {
 			trashedAt: null,
 			isEncrypted: false,
 			isCompressed: false,
-			color: null
+			color: null,
+			sortOrder
 		});
 	}
 

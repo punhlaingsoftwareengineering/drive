@@ -7,13 +7,17 @@ export const TeamSchema = pgTable(
 	{
 		...uuidSchemaWrapper,
 		name: text('name').notNull(),
+		slug: text('slug').notNull(),
 		createdByUserId: text('created_by_user_id').notNull(),
 		/** Filled after root folder row is created; may be null briefly during a transaction. */
 		rootFolderId: uuid('root_folder_id'),
 		storageProvider: MasterStorageProviderSchema('storage_provider').notNull().default('local'),
 		...createUpdateTimestamp
 	},
-	(t) => [index('team_createdByUserId_idx').on(t.createdByUserId)]
+	(t) => [
+		index('team_createdByUserId_idx').on(t.createdByUserId),
+		uniqueIndex('team_slug_uidx').on(t.slug)
+	]
 );
 
 export const TeamMemberSchema = pgTable(

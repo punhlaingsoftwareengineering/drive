@@ -30,7 +30,6 @@
 							>Docs</a
 						>
 					</li>
-					<li><a href={resolve('/(public)/onboarding/pricing')}>Pricing</a></li>
 				</ul>
 			</div>
 			<a class="d-btn text-xl d-btn-ghost" href={resolve('/(public)/onboarding')}>{appName()}</a>
@@ -42,7 +41,6 @@
 						>Docs</a
 					>
 				</li>
-				<li><a href={resolve('/(public)/onboarding/pricing')}>Pricing</a></li>
 			</ul>
 		</div>
 		<div class="d-navbar-end gap-5">

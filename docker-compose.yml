@@ -15,10 +15,8 @@ services:
     env_file:
       - .env
     volumes:
-      - drive-data:/data/znl-drive
-
-volumes:
-  drive-data:
+      # Bind-mount host disk (not a Docker-managed named volume). Set LOCAL_DRIVE_HOST_PATH in .env.
+      - ${LOCAL_DRIVE_HOST_PATH:-./data/znl-drive}:/data/znl-drive
 
 # For HTTPS on a LAN or cloud VM, put a reverse proxy in front and forward headers.
 # Example nginx location block (uncomment and add an nginx service if needed):

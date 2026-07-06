@@ -15,6 +15,7 @@ export type ApiDriveFile = {
 	color: string | null;
 	parentId: string | null;
 	ownerName: string;
+	sortOrder: number;
 };
 
 export type DriveItem = {
@@ -29,6 +30,7 @@ export type DriveItem = {
 	color: FileLabelColorId | string | null;
 	parentId: string | null;
 	ownerName: string;
+	sortOrder: number;
 };
 
 export type RecentSource = 'own' | 'shared' | 'team';
@@ -38,6 +40,7 @@ export type RecentDriveItem = DriveItem & {
 	source: RecentSource;
 	teamId: string | null;
 	teamName: string | null;
+	teamSlug: string | null;
 	sharePermission: string | null;
 };
 
@@ -60,14 +63,21 @@ export function mapApiFile(f: ApiDriveFile): DriveItem {
 		starred: f.isStarred,
 		color: f.color as FileLabelColorId | null,
 		parentId: f.parentId ?? null,
-		ownerName: f.ownerName
+		ownerName: f.ownerName,
+		sortOrder: f.sortOrder ?? 0
 	};
 }
 
-export function partitionDriveRows<T extends { pinned: boolean; starred: boolean; name: string }>(
-	rows: T[]
-): { pinned: T[]; starred: T[]; other: T[] } {
-	const sorted = rows.slice().sort((a, b) => a.name.localeCompare(b.name));
+function compareDriveRows<T extends { sortOrder: number; name: string }>(a: T, b: T): number {
+	const byOrder = a.sortOrder - b.sortOrder;
+	if (byOrder !== 0) return byOrder;
+	return a.name.localeCompare(b.name);
+}
+
+export function partitionDriveRows<
+	T extends { pinned: boolean; starred: boolean; name: string; sortOrder: number }
+>(rows: T[]): { pinned: T[]; starred: T[]; other: T[] } {
+	const sorted = rows.slice().sort(compareDriveRows);
 	const pinned: T[] = [];
 	const starred: T[] = [];
 	const other: T[] = [];
@@ -79,10 +89,10 @@ export function partitionDriveRows<T extends { pinned: boolean; starred: boolean
 	return { pinned, starred, other };
 }
 
-export function partitionBrowseRows<T extends { pinned: boolean; starred: boolean; name: string }>(
-	rows: T[]
-): { pinned: T[]; starred: T[]; other: T[] } {
-	const sorted = rows.slice().sort((a, b) => a.name.localeCompare(b.name));
+export function partitionBrowseRows<
+	T extends { pinned: boolean; starred: boolean; name: string; sortOrder: number }
+>(rows: T[]): { pinned: T[]; starred: T[]; other: T[] } {
+	const sorted = rows.slice().sort(compareDriveRows);
 	return {
 		pinned: sorted.filter((r) => r.pinned),
 		starred: sorted.filter((r) => r.starred && !r.pinned),

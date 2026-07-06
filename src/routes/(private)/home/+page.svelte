@@ -2,6 +2,7 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { fetchWithSession } from '$lib/client/fetch-session';
+	import { applyLocalReorder, reorderDriveItems } from '$lib/client/drive-reorder';
 	import { resolveHref } from '$lib/url/resolve-href';
 	import { page } from '$app/state';
 	import { uploadFilesWithProgress } from '$lib/client/upload-drive';
@@ -114,6 +115,23 @@
 			fileDragDepth = Math.max(0, fileDragDepth - 1);
 		}
 	}
+
+	async function handleReorder(orderedIds: string[]) {
+		const parentId = page.url.searchParams.get('folder');
+		try {
+			await reorderDriveItems({
+				orderedIds,
+				parentId,
+				storageProvider: driveStorage.current
+			});
+			rows = applyLocalReorder(rows, orderedIds);
+		} catch (e) {
+			toastService.addToast(
+				e instanceof Error ? e.message : 'Failed to reorder',
+				StatusColorEnum.ERROR
+			);
+		}
+	}
 </script>
 
 <div class="flex min-h-0 flex-1 flex-col gap-6 pb-8">
@@ -159,6 +177,7 @@
 				)} yet. Use NEW or drag files here."
 				onEnterFolder={enterFolder}
 				onScroll={actions.closeFileActionsMenu}
+				onReorder={handleReorder}
 			/>
 		</div>
 	</div>

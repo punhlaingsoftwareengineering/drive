@@ -39,6 +39,7 @@
 		source: RecentSource;
 		teamId: string | null;
 		teamName: string | null;
+		teamSlug: string | null;
 		sharePermission: string | null;
 	};
 
@@ -71,9 +72,11 @@
 			color: f.color as FileLabelColorId | null,
 			parentId: f.parentId ?? null,
 			ownerName: f.ownerName,
+			sortOrder: 0,
 			source: f.source,
 			teamId: f.teamId,
 			teamName: f.teamName,
+			teamSlug: f.teamSlug,
 			sharePermission: f.sharePermission
 		};
 	}
@@ -84,8 +87,10 @@
 			void goto(`${resolve('/home')}?folder=${encodeURIComponent(item.id)}`);
 		} else if (item.source === 'shared') {
 			void goto(`${resolve('/home/shared')}?folder=${encodeURIComponent(item.id)}`);
+		} else if (item.source === 'team' && item.teamSlug) {
+			void goto(`${resolveHref(`/home/team/${item.teamSlug}`)}?folder=${encodeURIComponent(item.id)}`);
 		} else if (item.source === 'team' && item.teamId) {
-			void goto(`${resolve(`/home/team/${item.teamId}`)}?folder=${encodeURIComponent(item.id)}`);
+			void goto(`${resolveHref(`/home/team/${item.teamId}`)}?folder=${encodeURIComponent(item.id)}`);
 		}
 	}
 

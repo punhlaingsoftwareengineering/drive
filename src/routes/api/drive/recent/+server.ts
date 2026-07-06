@@ -5,6 +5,7 @@ import {
 } from '$lib/server/drive-folder-size';
 import { sizeBytesJson } from '$lib/server/drive-size-json';
 import { requireApiSession } from '$lib/server/require-api-session';
+import { resolveTeamApiContext } from '$lib/server/team-api-scope';
 import { db } from '$lib/server/db';
 import { AuthUserSchema } from '$lib/server/db/schema/auth-schema/auth.schema';
 import { MainFileSchema, MainFileShareSchema } from '$lib/server/db/schema/main-schema/main.schema';
@@ -59,6 +60,7 @@ type Merged = {
 	recency: Date;
 	teamId: string | null;
 	teamName: string | null;
+	teamSlug: string | null;
 	sharePermission: string | null;
 };
 
@@ -66,12 +68,13 @@ export const GET: RequestHandler = async ({ request, url }) => {
 	const session = await requireApiSession(request);
 	const userId = session.user.id;
 	const email = session.user.email?.trim().toLowerCase() ?? null;
+	const teamCtx = await resolveTeamApiContext(userId, url);
 
 	const raw = url.searchParams.get('storageProvider') ?? 'local';
 	if (!STORAGE_PROVIDERS.includes(raw as StorageProviderId)) {
 		throw error(400, 'Invalid storage provider');
 	}
-	const storageProvider = raw as StorageProviderId;
+	const storageProvider = teamCtx?.storageProvider ?? (raw as StorageProviderId);
 
 	const fileFields = {
 		id: MainFileSchema.id,
@@ -90,41 +93,44 @@ export const GET: RequestHandler = async ({ request, url }) => {
 		createdAt: MainFileSchema.createdAt
 	};
 
-	const ownRows = await db
-		.select(fileFields)
-		.from(MainFileSchema)
-		.innerJoin(AuthUserSchema, eq(MainFileSchema.ownerId, AuthUserSchema.id))
-		.where(
-			and(
-				eq(MainFileSchema.ownerId, userId),
-				isNull(MainFileSchema.teamId),
-				isNull(MainFileSchema.trashedAt),
-				eq(MainFileSchema.storageProvider, storageProvider)
-			)
-		)
-		.orderBy(desc(MainFileSchema.createdAt))
-		.limit(PER_BRANCH);
-
-	const sharedRows = email
-		? await db
-				.select({
-					...fileFields,
-					shareCreatedAt: MainFileShareSchema.createdAt,
-					sharePermission: MainFileShareSchema.permission
-				})
-				.from(MainFileShareSchema)
-				.innerJoin(MainFileSchema, eq(MainFileShareSchema.fileId, MainFileSchema.id))
+	const ownRows = teamCtx
+		? []
+		: await db
+				.select(fileFields)
+				.from(MainFileSchema)
 				.innerJoin(AuthUserSchema, eq(MainFileSchema.ownerId, AuthUserSchema.id))
 				.where(
 					and(
-						eq(MainFileShareSchema.targetEmail, email),
+						eq(MainFileSchema.ownerId, userId),
+						isNull(MainFileSchema.teamId),
 						isNull(MainFileSchema.trashedAt),
 						eq(MainFileSchema.storageProvider, storageProvider)
 					)
 				)
-				.orderBy(desc(MainFileShareSchema.createdAt))
-				.limit(PER_BRANCH)
-		: [];
+				.orderBy(desc(MainFileSchema.createdAt))
+				.limit(PER_BRANCH);
+
+	const sharedRows =
+		teamCtx || !email
+			? []
+			: await db
+					.select({
+						...fileFields,
+						shareCreatedAt: MainFileShareSchema.createdAt,
+						sharePermission: MainFileShareSchema.permission
+					})
+					.from(MainFileShareSchema)
+					.innerJoin(MainFileSchema, eq(MainFileShareSchema.fileId, MainFileSchema.id))
+					.innerJoin(AuthUserSchema, eq(MainFileSchema.ownerId, AuthUserSchema.id))
+					.where(
+						and(
+							eq(MainFileShareSchema.targetEmail, email),
+							isNull(MainFileSchema.trashedAt),
+							eq(MainFileSchema.storageProvider, storageProvider)
+						)
+					)
+					.orderBy(desc(MainFileShareSchema.createdAt))
+					.limit(PER_BRANCH);
 
 	const recencyGreatest = sql<Date>`GREATEST(${MainFileSchema.createdAt}, ${TeamMemberSchema.createdAt})`;
 
@@ -133,6 +139,7 @@ export const GET: RequestHandler = async ({ request, url }) => {
 			...fileFields,
 			teamId: MainFileSchema.teamId,
 			teamName: TeamSchema.name,
+			teamSlug: TeamSchema.slug,
 			recency: recencyGreatest
 		})
 		.from(MainFileSchema)
@@ -143,11 +150,17 @@ export const GET: RequestHandler = async ({ request, url }) => {
 		)
 		.innerJoin(TeamSchema, eq(MainFileSchema.teamId, TeamSchema.id))
 		.where(
-			and(
-				isNotNull(MainFileSchema.teamId),
-				isNull(MainFileSchema.trashedAt),
-				eq(MainFileSchema.storageProvider, storageProvider)
-			)
+			teamCtx
+				? and(
+						eq(MainFileSchema.teamId, teamCtx.teamId),
+						isNull(MainFileSchema.trashedAt),
+						eq(MainFileSchema.storageProvider, storageProvider)
+					)
+				: and(
+						isNotNull(MainFileSchema.teamId),
+						isNull(MainFileSchema.trashedAt),
+						eq(MainFileSchema.storageProvider, storageProvider)
+					)
 		)
 		.orderBy(desc(recencyGreatest))
 		.limit(PER_BRANCH);
@@ -172,6 +185,7 @@ export const GET: RequestHandler = async ({ request, url }) => {
 			recency: toDate(r.createdAt),
 			teamId: null,
 			teamName: null,
+			teamSlug: null,
 			sharePermission: null
 		});
 	}
@@ -194,6 +208,7 @@ export const GET: RequestHandler = async ({ request, url }) => {
 			recency: toDate(r.shareCreatedAt),
 			teamId: null,
 			teamName: null,
+			teamSlug: null,
 			sharePermission: r.sharePermission
 		});
 	}
@@ -216,6 +231,7 @@ export const GET: RequestHandler = async ({ request, url }) => {
 			recency: toDate(r.recency),
 			teamId: r.teamId,
 			teamName: r.teamName,
+			teamSlug: r.teamSlug,
 			sharePermission: null
 		});
 	}
@@ -283,6 +299,7 @@ export const GET: RequestHandler = async ({ request, url }) => {
 				source: r.source,
 				teamId: r.teamId,
 				teamName: r.teamName,
+				teamSlug: r.teamSlug,
 				sharePermission: r.sharePermission
 			};
 		})

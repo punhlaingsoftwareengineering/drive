@@ -1,25 +1,71 @@
 <script lang="ts">
 	import { appName, appTitle } from '$lib/app-name';
 	import { localizeHref } from '$lib/paraglide/runtime';
-	import { LucideKeyRound, LucideListTree, LucideTriangleAlert } from '@lucide/svelte';
+	import {
+		LucideBookOpen,
+		LucideFolderTree,
+		LucideKeyRound,
+		LucideListTree,
+		LucideRocket,
+		LucideRoute,
+		LucideTriangleAlert,
+		LucideUsers,
+		LucideRepeat
+	} from '@lucide/svelte';
 
 	const cards = [
 		{
+			href: '/onboarding/docs/developer/getting-started',
+			title: 'Getting started',
+			desc: 'Base URL, enable developer mode, create an API key, and run your first authenticated request.',
+			Icon: LucideRocket
+		},
+		{
 			href: '/onboarding/docs/developer/authentication',
 			title: 'Authentication',
-			desc: 'Cookie sessions, developer API keys (`znldv_…`), and when Bearer vs browser-only applies.',
+			desc: 'Cookie sessions, developer API keys (`znldv_…`), headers, and which routes accept keys.',
 			Icon: LucideKeyRound
+		},
+		{
+			href: '/onboarding/docs/developer/conventions',
+			title: 'Conventions',
+			desc: 'JSON rules, UUIDs, storage providers, team scoping, dates, errors, and versioning policy.',
+			Icon: LucideBookOpen
 		},
 		{
 			href: '/onboarding/docs/developer/rest-api',
 			title: 'REST API reference',
-			desc: 'Method and path catalog for `api/auth`, `api/teams`, `api/drive`, `api/developer`, `api/public`, and cron.',
+			desc: 'Complete endpoint index with auth and content-type columns.',
 			Icon: LucideListTree
+		},
+		{
+			href: '/onboarding/docs/developer/drive-api',
+			title: 'Drive API',
+			desc: 'Full contracts for files, folders, upload, trash, stats, sharing, and public links.',
+			Icon: LucideFolderTree
+		},
+		{
+			href: '/onboarding/docs/developer/teams-api',
+			title: 'Teams API',
+			desc: 'List teams, create teams, and send invites — all via API key.',
+			Icon: LucideUsers
+		},
+		{
+			href: '/onboarding/docs/developer/other-endpoints',
+			title: 'Other endpoints',
+			desc: 'Auth, developer admin, public token routes, and cron purge.',
+			Icon: LucideRoute
+		},
+		{
+			href: '/onboarding/docs/developer/workflows',
+			title: 'Workflows',
+			desc: 'End-to-end recipes: uploads, team drives, sharing, public links, and trash.',
+			Icon: LucideRepeat
 		},
 		{
 			href: '/onboarding/docs/developer/errors',
 			title: 'Errors',
-			desc: 'Typical 401, 403, 503 responses across drive and developer routes.',
+			desc: 'Status codes, example bodies, and client handling across drive and developer routes.',
 			Icon: LucideTriangleAlert
 		}
 	] as const;
@@ -36,11 +82,12 @@
 <div class="not-prose mx-auto max-w-4xl">
 	<h1 class="mb-2 text-3xl font-bold text-base-content">Developer</h1>
 	<p class="mb-10 text-lg text-base-content/70">
-		Integrate with {appName()} over HTTP: authenticate like the web app or with a developer API key, then
-		call the drive JSON and binary endpoints.
+		Integrate with {appName()} over HTTP: authenticate with a developer API key or browser session, then
+		call the drive JSON and binary endpoints. Every drive and teams feature available in the UI is
+		exposed to API keys.
 	</p>
 
-	<ul class="grid gap-4 sm:grid-cols-3">
+	<ul class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
 		{#each cards as c (c.href)}
 			<li>
 				<a

@@ -4,8 +4,8 @@ import { appAbsoluteUrlFromRequest } from './app-absolute-url';
 describe('appAbsoluteUrlFromRequest', () => {
 	it('builds an absolute URL with origin and pathname', () => {
 		vi.stubEnv('BASE_URL', '/');
-		expect(appAbsoluteUrlFromRequest('http://localhost:5173/some/page', '/api/drive/files')).toBe(
-			'http://localhost:5173/api/drive/files'
+		expect(appAbsoluteUrlFromRequest('http://localhost:1025/some/page', '/api/drive/files')).toBe(
+			'http://localhost:1025/api/drive/files'
 		);
 	});
 

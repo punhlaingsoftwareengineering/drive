@@ -1,7 +1,14 @@
 import { db } from '$lib/server/db';
 import { AuthUserSchema } from '$lib/server/db/schema/auth-schema/auth.schema';
 import { TeamMemberSchema, TeamSchema } from '$lib/server/db/schema/main-schema/team.schema';
+import { error } from '@sveltejs/kit';
 import { and, desc, eq, inArray } from 'drizzle-orm';
+
+export async function requireTeamMember(userId: string, teamId: string): Promise<void> {
+	if (!(await isTeamMember(userId, teamId))) {
+		throw error(403, 'Forbidden');
+	}
+}
 
 export async function isTeamMember(userId: string, teamId: string): Promise<boolean> {
 	const [m] = await db
@@ -14,9 +21,9 @@ export async function isTeamMember(userId: string, teamId: string): Promise<bool
 
 export async function listTeamsForUser(
 	userId: string
-): Promise<Array<{ id: string; name: string }>> {
+): Promise<Array<{ id: string; name: string; slug: string }>> {
 	return db
-		.select({ id: TeamSchema.id, name: TeamSchema.name })
+		.select({ id: TeamSchema.id, name: TeamSchema.name, slug: TeamSchema.slug })
 		.from(TeamSchema)
 		.innerJoin(TeamMemberSchema, eq(TeamMemberSchema.teamId, TeamSchema.id))
 		.where(eq(TeamMemberSchema.userId, userId))

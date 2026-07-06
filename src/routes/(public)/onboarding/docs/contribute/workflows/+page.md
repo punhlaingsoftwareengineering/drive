@@ -3,7 +3,7 @@
 ## Development server
 
 ```bash
-deno task dev
+pnpm dev
 ```
 
 Runs Vite + SvelteKit in dev mode with HMR on port 1025. Sign in through the normal UI to exercise private routes.
@@ -11,7 +11,7 @@ Runs Vite + SvelteKit in dev mode with HMR on port 1025. Sign in through the nor
 ## Typecheck
 
 ```bash
-deno task check
+pnpm check
 ```
 
 Runs `svelte-kit sync` and `svelte-check` against `tsconfig.json`. Use this before pushing; CI should enforce the same bar.
@@ -19,21 +19,21 @@ Runs `svelte-kit sync` and `svelte-check` against `tsconfig.json`. Use this befo
 ## Tests
 
 ```bash
-deno task test
+pnpm test
 ```
 
-Runs unit tests (`vitest`) and e2e tests (`playwright`) as defined in `deno.json`. For a quicker loop:
+Runs unit tests (`vitest`) and e2e tests (`playwright`) as defined in `package.json`. For a quicker loop:
 
 ```bash
-deno task test:unit
-deno task test:e2e
+pnpm test:unit
+pnpm test:e2e
 ```
 
 ## Lint and format
 
 ```bash
-deno task lint
-deno task format
+pnpm lint
+pnpm format
 ```
 
 Keep Prettier and ESLint clean so reviews focus on behavior, not style drift.

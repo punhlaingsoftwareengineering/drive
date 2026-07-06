@@ -1,11 +1,19 @@
 import { resolve } from '$app/paths';
+import { resolveHref } from '$lib/url/resolve-href';
 import { canAccessSharedItem, sharedRootIdsForRecipient } from '$lib/server/drive-shared-access';
 import { db } from '$lib/server/db';
 import { AuthUserSchema } from '$lib/server/db/schema/auth-schema/auth.schema';
 import { MainFileSchema } from '$lib/server/db/schema/main-schema/main.schema';
 import { TeamSchema } from '$lib/server/db/schema/main-schema/team.schema';
 import { isTeamMember, listTeamsForUser } from '$lib/server/team-access';
+import {
+	isTeamScopeSubpath,
+	parseTeamScopeView,
+	type TeamScopeView
+} from '$lib/model/team-scope';
 import { pathWithoutBase } from '$lib/url/path-without-base';
+import { listFolderAncestors, type FolderAncestor } from '$lib/server/drive-folder-ancestors';
+import { isUuidLike } from '$lib/tool/team-slug';
 import type { LayoutServerLoad } from './$types';
 import { redirect } from '@sveltejs/kit';
 import { readFileSync } from 'node:fs';
@@ -39,8 +47,9 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 	}
 
 	const rel = pathWithoutBase(url.pathname);
-	const teamPathMatch = rel.match(/^\/home\/team\/([0-9a-f-]{36})$/i);
-	const teamRouteId = teamPathMatch?.[1] ?? null;
+	const teamPathMatch = rel.match(/^\/home\/team\/([^/]+)(?:\/([^/]+))?\/?$/);
+	const teamSegment = teamPathMatch?.[1] ?? null;
+	const teamSubPathRaw = teamPathMatch?.[2] ?? null;
 	const isHomeFilesPage = rel === '/home';
 	const isSharedPage = rel === '/home/shared';
 	const isTrashPage = rel === '/home/trash';
@@ -56,33 +65,69 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 	let teamView: {
 		id: string;
 		name: string;
+		slug: string;
 		rootFolderId: string;
 		storageProvider: 'local' | 'tigris';
 	} | null = null;
+	let teamRouteId: string | null = null;
+	let teamScopeView: TeamScopeView | null = null;
 
-	if (teamRouteId) {
-		if (!(await isTeamMember(locals.user.id, teamRouteId))) {
+	if (teamSegment) {
+		if (teamSubPathRaw && !isTeamScopeSubpath(teamSubPathRaw)) {
+			throw redirect(303, resolveHref(`/home/team/${teamSegment}`));
+		}
+
+		const [t] = isUuidLike(teamSegment)
+			? await db
+					.select({
+						id: TeamSchema.id,
+						name: TeamSchema.name,
+						slug: TeamSchema.slug,
+						rootFolderId: TeamSchema.rootFolderId,
+						storageProvider: TeamSchema.storageProvider
+					})
+					.from(TeamSchema)
+					.where(eq(TeamSchema.id, teamSegment))
+					.limit(1)
+			: await db
+					.select({
+						id: TeamSchema.id,
+						name: TeamSchema.name,
+						slug: TeamSchema.slug,
+						rootFolderId: TeamSchema.rootFolderId,
+						storageProvider: TeamSchema.storageProvider
+					})
+					.from(TeamSchema)
+					.where(eq(TeamSchema.slug, teamSegment))
+					.limit(1);
+
+		if (isUuidLike(teamSegment) && t?.slug && t.slug !== teamSegment) {
+			const subSuffix = teamSubPathRaw ? `/${teamSubPathRaw}` : '';
+			const dest = resolveHref(`/home/team/${t.slug}${subSuffix}`);
+			const qs = url.searchParams.toString();
+			throw redirect(303, qs ? `${dest}?${qs}` : dest);
+		}
+
+		if (!t?.rootFolderId || !(await isTeamMember(locals.user.id, t.id))) {
 			throw redirect(303, '/home');
 		}
-		const [t] = await db
-			.select({
-				id: TeamSchema.id,
-				name: TeamSchema.name,
-				rootFolderId: TeamSchema.rootFolderId,
-				storageProvider: TeamSchema.storageProvider
-			})
-			.from(TeamSchema)
-			.where(eq(TeamSchema.id, teamRouteId))
-			.limit(1);
-		if (!t?.rootFolderId) {
-			throw redirect(303, '/home');
-		}
+
+		teamRouteId = t.id;
 		teamView = {
 			id: t.id,
 			name: t.name,
+			slug: t.slug,
 			rootFolderId: t.rootFolderId,
 			storageProvider: t.storageProvider as 'local' | 'tigris'
 		};
+		teamScopeView = parseTeamScopeView(teamSubPathRaw);
+	}
+
+	if (teamScopeView === 'recent' && folderParamEarly && folderParamEarly.trim() !== '') {
+		throw redirect(303, resolveHref(`/home/team/${teamView!.slug}/recent`));
+	}
+	if (teamScopeView === 'trash' && folderParamEarly && folderParamEarly.trim() !== '') {
+		throw redirect(303, resolveHref(`/home/team/${teamView!.slug}/trash`));
 	}
 
 	const folderParam = url.searchParams.get('folder');
@@ -98,13 +143,16 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 	if (folderParam && folderParam.trim() !== '') {
 		const parsed = z.string().uuid().safeParse(folderParam.trim());
 		if (!parsed.success) {
+			const teamHome = teamRouteId && teamView ? resolveHref(`/home/team/${teamView.slug}`) : null;
+			const teamShared =
+				teamRouteId && teamView && teamScopeView === 'shared'
+					? resolveHref(`/home/team/${teamView.slug}/shared`)
+					: null;
 			throw redirect(
 				303,
 				isSharedPage
 					? resolve('/home/shared')
-					: teamRouteId
-						? resolve(`/home/team/${teamRouteId}`)
-						: resolve('/home')
+					: teamShared ?? teamHome ?? resolve('/home')
 			);
 		}
 
@@ -179,7 +227,41 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 				parentId: row.parentId ?? null,
 				upHref
 			};
-		} else if (teamRouteId && teamView) {
+		} else if (teamRouteId && teamView && teamScopeView === 'shared') {
+			const [row] = await db
+				.select({
+					id: MainFileSchema.id,
+					name: MainFileSchema.name,
+					parentId: MainFileSchema.parentId,
+					itemType: MainFileSchema.itemType
+				})
+				.from(MainFileSchema)
+				.where(
+					and(
+						eq(MainFileSchema.id, parsed.data),
+						eq(MainFileSchema.teamId, teamRouteId),
+						isNull(MainFileSchema.trashedAt)
+					)
+				)
+				.limit(1);
+
+			const sharedBase = resolveHref(`/home/team/${teamView.slug}/shared`);
+			if (!row || row.itemType !== 'folder') {
+				throw redirect(303, sharedBase);
+			}
+
+			const upHref: string =
+				!row.parentId || row.parentId === teamView.rootFolderId
+					? sharedBase
+					: `${sharedBase}?folder=${encodeURIComponent(row.parentId)}`;
+
+			currentFolder = {
+				id: row.id,
+				name: row.name,
+				parentId: row.parentId ?? null,
+				upHref
+			};
+		} else if (teamRouteId && teamView && teamScopeView === 'home') {
 			const [row] = await db
 				.select({
 					id: MainFileSchema.id,
@@ -199,10 +281,10 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 				.limit(1);
 
 			if (!row || row.itemType !== 'folder') {
-				throw redirect(303, resolve(`/home/team/${teamRouteId}`));
+				throw redirect(303, resolveHref(`/home/team/${teamView!.slug}`));
 			}
 
-			const base = resolve(`/home/team/${teamRouteId}`);
+			const base = resolveHref(`/home/team/${teamView.slug}`);
 			const upHref: string =
 				!row.parentId || row.parentId === teamView.rootFolderId
 					? base
@@ -214,6 +296,37 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 				parentId: row.parentId ?? null,
 				upHref
 			};
+		}
+	}
+
+	let folderAncestors: FolderAncestor[] = [];
+	if (currentFolder) {
+		if (isSharedPage) {
+			folderAncestors = await listFolderAncestors(
+				currentFolder.parentId,
+				null,
+				(id) => `${resolve('/home/shared')}?folder=${encodeURIComponent(id)}`
+			);
+		} else if (isHomeFilesPage) {
+			folderAncestors = await listFolderAncestors(
+				currentFolder.parentId,
+				null,
+				(id) => `${resolve('/home')}?folder=${encodeURIComponent(id)}`
+			);
+		} else if (teamView && teamScopeView === 'shared') {
+			folderAncestors = await listFolderAncestors(
+				currentFolder.parentId,
+				teamView.rootFolderId,
+				(id) =>
+					`${resolveHref(`/home/team/${teamView.slug}/shared`)}?folder=${encodeURIComponent(id)}`
+			);
+		} else if (teamView && teamScopeView === 'home') {
+			folderAncestors = await listFolderAncestors(
+				currentFolder.parentId,
+				teamView.rootFolderId,
+				(id) =>
+					`${resolveHref(`/home/team/${teamView.slug}`)}?folder=${encodeURIComponent(id)}`
+			);
 		}
 	}
 
@@ -232,10 +345,12 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 		appVersion: readAppVersion(),
 		developerModeEnabled,
 		currentFolder,
+		folderAncestors,
 		sharedView: isSharedPage,
 		recentView: isRecentPage,
 		trashView: isTrashPage,
 		teams,
-		teamView
+		teamView,
+		teamScopeView
 	};
 };

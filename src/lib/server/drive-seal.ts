@@ -1,5 +1,6 @@
 import { env } from '$env/dynamic/private';
 import { IN_MEMORY_SEAL_THRESHOLD_BYTES } from '$lib/server/drive-upload-limits';
+import { isArchiveMime } from '$lib/tool/mime-kind';
 import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from 'node:crypto';
 import { createReadStream, createWriteStream } from 'node:fs';
 import { open } from 'node:fs/promises';
@@ -36,16 +37,7 @@ export function shouldCompressMime(mime: string): boolean {
 	const m = (mime ?? '').trim().toLowerCase();
 	if (!m) return true;
 	if (m.startsWith('video/') || m.startsWith('audio/')) return false;
-	if (
-		m === 'application/zip' ||
-		m === 'application/gzip' ||
-		m === 'application/x-gzip' ||
-		m === 'application/x-7z-compressed' ||
-		m === 'application/vnd.rar' ||
-		m.startsWith('image/')
-	) {
-		return false;
-	}
+	if (isArchiveMime(m) || m.startsWith('image/')) return false;
 	return true;
 }
 

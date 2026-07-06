@@ -11,7 +11,7 @@ import { TeamSchema } from '$lib/server/db/schema/main-schema/team.schema';
 import { isTeamMember } from '$lib/server/team-access';
 import { STORAGE_PROVIDERS, type StorageProviderId } from '$lib/model/storage-provider';
 import { error, json } from '@sveltejs/kit';
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, asc, eq, isNull } from 'drizzle-orm';
 import { z } from 'zod';
 import type { RequestHandler } from './$types';
 
@@ -84,12 +84,14 @@ export const GET: RequestHandler = async ({ request, url }) => {
 			isStarred: MainFileSchema.isStarred,
 			color: MainFileSchema.color,
 			parentId: MainFileSchema.parentId,
+			sortOrder: MainFileSchema.sortOrder,
 			ownerName: AuthUserSchema.name,
 			ownerEmail: AuthUserSchema.email
 		})
 		.from(MainFileSchema)
 		.innerJoin(AuthUserSchema, eq(MainFileSchema.ownerId, AuthUserSchema.id))
-		.where(and(personalOrTeam, isNull(MainFileSchema.trashedAt), parentFilter));
+		.where(and(personalOrTeam, isNull(MainFileSchema.trashedAt), parentFilter))
+		.orderBy(asc(MainFileSchema.sortOrder), asc(MainFileSchema.name));
 
 	const folderIds = rows.filter((r) => r.itemType === 'folder').map((r) => r.id);
 	const subtreeBytes = teamId
@@ -111,6 +113,7 @@ export const GET: RequestHandler = async ({ request, url }) => {
 			isStarred: r.isStarred,
 			color: r.color,
 			parentId: r.parentId ?? null,
+			sortOrder: r.sortOrder,
 			ownerName: ownerDisplayName(r.ownerName, r.ownerEmail)
 		}))
 	});

@@ -38,6 +38,7 @@ export const MainFileSchema = pgTable(
 		storageProvider: MasterStorageProviderSchema('storage_provider').notNull().default('local'),
 		isEncrypted: boolean('is_encrypted').notNull().default(true),
 		isCompressed: boolean('is_compressed').notNull().default(true),
+		sortOrder: integer('sort_order').notNull().default(0),
 		...createUpdateTimestamp
 	},
 	(t) => [index('main_file_teamId_idx').on(t.teamId)]

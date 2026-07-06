@@ -17,3 +17,5 @@ The app uses **Paraglide** for locales. Pick a language in settings so in-app st
 ## Profile
 
 Use **Profile** (also in the menu) for account-related options, including developer features when enabled.
+
+To integrate via HTTP, enable **Developer mode** in Profile, create an API key, and follow the [API getting started guide](/onboarding/docs/developer/getting-started).

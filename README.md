@@ -9,13 +9,13 @@ ZNL-DRIVE is a SvelteKit app that provides a simple “drive” experience with 
   - **Local** (files stored on the server’s filesystem)
   - **Tigris** (S3-compatible object storage via `@tigrisdata/storage`)
 - **Drive UI**: files/folders, shared items, trash, dashboard stats
-- **Docs**: onboarding documentation via mdsvex
+- **Docs**: onboarding documentation via mdsvex (user manual, contributor guides, **[REST API reference](/onboarding/docs/developer)**)
 - **UI**: Tailwind CSS + DaisyUI (prefixed classes `d-...`)
 
 ## Tech stack
 
 - **SvelteKit** + **Svelte 5** (adapter-node)
-- **Deno 2** for install, dev, build, and scripts
+- **pnpm** + **Node.js** for install, dev, build, and scripts
 - **Postgres** via **Drizzle ORM** (Neon serverless driver)
 - **Better Auth** sessions/cookies
 - **Tigris Storage** SDK
@@ -24,8 +24,8 @@ ZNL-DRIVE is a SvelteKit app that provides a simple “drive” experience with 
 
 ### Prerequisites
 
-- [Deno 2.x](https://docs.deno.com/runtime/getting_started/installation/) — install deps and run tasks (`deno task …`)
-- Node.js — used by Vite/SvelteKit build CLI (Deno’s npm runner breaks tsconfig `extends` resolution); also the production runtime in Docker
+- [pnpm](https://pnpm.io/installation) — install deps and run scripts
+- [Node.js](https://nodejs.org/) 20+ — dev, build, and production runtime (Docker)
 - Postgres database (local or hosted)
 
 ### Setup
@@ -33,7 +33,7 @@ ZNL-DRIVE is a SvelteKit app that provides a simple “drive” experience with 
 1. Install dependencies:
 
 ```bash
-deno install
+pnpm install
 ```
 
 2. Create an `.env` file:
@@ -51,13 +51,13 @@ cp .env.example .env
 4. Push DB schema:
 
 ```bash
-deno task db:push
+pnpm db:push
 ```
 
 5. Start dev server:
 
 ```bash
-deno task dev
+pnpm dev
 ```
 
 Open `http://localhost:1025`.
@@ -79,12 +79,12 @@ See `.env.example`. Key variables:
 
 ## Database workflows
 
-Common tasks (from `deno.json`):
+Common tasks (from `package.json`):
 
-- **`deno task db:push`**: push schema to the database
-- **`deno task db:generate`**: generate migrations (if you’re using migrations)
-- **`deno task db:migrate`**: run migrations
-- **`deno task db:studio`**: open Drizzle Studio
+- **`pnpm db:push`**: push schema to the database
+- **`pnpm db:generate`**: generate migrations (if you’re using migrations)
+- **`pnpm db:migrate`**: run migrations
+- **`pnpm db:studio`**: open Drizzle Studio
 
 ## Storage providers
 
@@ -101,19 +101,21 @@ This repo ships with a Dockerfile, optional `docker-compose.yml`, and Fly.io con
 
 ### Docker (local server or cloud VM)
 
+Full reference (pull, build, Compose, every env var): open **`/onboarding/docs/contribute/docker`** in the app documentation.
+
 ```bash
 docker build -t znl-drive .
 docker run -p 1025:1025 \
-  -v drive-data:/data/znl-drive \
+  -v /path/on/host/znl-drive:/data/znl-drive \
   -e ORIGIN=http://YOUR_HOST:1025 \
   -e BETTER_AUTH_SECRET=... \
   -e DATABASE_URL='postgresql://...' \
   znl-drive
 ```
 
-The image sets `BODY_SIZE_LIMIT=8M` (per chunk), `LOCAL_DRIVE_DATA_DIR=/data/znl-drive`, and `MAX_UPLOAD_BYTES=0` (unlimited single-file size). Mount a volume at `/data/znl-drive` when using **Local** storage so uploads survive container restarts. Large files (e.g. MP4) are assembled on disk under `.upload-sessions/` during chunked upload; ensure enough free disk for roughly **2× the file size** during finalize.
+The image sets `BODY_SIZE_LIMIT=8M` (per chunk), `LOCAL_DRIVE_DATA_DIR=/data/znl-drive`, and `MAX_UPLOAD_BYTES=0` (unlimited single-file size). **Bind-mount a host directory** to `/data/znl-drive` when using **Local** storage so files live on your real disk (not inside the container filesystem). With Compose, set `LOCAL_DRIVE_HOST_PATH` in `.env` (default `./data/znl-drive`). Large files (e.g. MP4) are assembled on disk under `.upload-sessions/` during chunked upload; ensure enough free disk for roughly **2× the file size** during finalize.
 
-Or with compose (includes the volume automatically):
+Or with compose (bind-mounts host disk automatically):
 
 ```bash
 docker compose up --build
@@ -149,7 +151,7 @@ Deployment is done via `.github/workflows/fly-deploy.yml` using:
 
 - `flyctl deploy --remote-only`
 
-Note: Docker image builds run without Fly secrets. Auth initialization is **build-safe** (placeholders during `deno task build`) but the app still requires real `ORIGIN`/`BETTER_AUTH_SECRET` at runtime in production.
+Note: Docker image builds run without Fly secrets. Auth initialization is **build-safe** (placeholders during `pnpm build`) but the app still requires real `ORIGIN`/`BETTER_AUTH_SECRET` at runtime in production.
 
 ## Troubleshooting (production)
 
@@ -171,14 +173,14 @@ Note: Docker image builds run without Fly secrets. Auth initialization is **buil
 
 ## Scripts
 
-From `deno.json`:
+From `package.json`:
 
-- `deno task dev` — dev server (port 1025)
-- `deno task build` — production build
-- `deno task preview` — preview build (port 1025)
-- `deno task check` — svelte-check
-- `deno task lint` / `deno task format`
-- `deno task test` — unit + e2e
+- `pnpm dev` — dev server (port 1025)
+- `pnpm build` — production build
+- `pnpm preview` — preview build (port 1025)
+- `pnpm check` — svelte-check
+- `pnpm lint` / `pnpm format`
+- `pnpm test` — unit + e2e
 
 ## License
 

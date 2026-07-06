@@ -31,8 +31,14 @@ export const DOCS_NAV: DocsNavItem[] = [
 		title: 'Developer',
 		path: `${DOCS_ROOT}/developer`,
 		children: [
+			{ title: 'Getting started', path: `${DOCS_ROOT}/developer/getting-started` },
 			{ title: 'Authentication', path: `${DOCS_ROOT}/developer/authentication` },
+			{ title: 'Conventions', path: `${DOCS_ROOT}/developer/conventions` },
 			{ title: 'REST API reference', path: `${DOCS_ROOT}/developer/rest-api` },
+			{ title: 'Drive API', path: `${DOCS_ROOT}/developer/drive-api` },
+			{ title: 'Teams API', path: `${DOCS_ROOT}/developer/teams-api` },
+			{ title: 'Other endpoints', path: `${DOCS_ROOT}/developer/other-endpoints` },
+			{ title: 'Workflows', path: `${DOCS_ROOT}/developer/workflows` },
 			{ title: 'Errors', path: `${DOCS_ROOT}/developer/errors` }
 		]
 	},
@@ -43,6 +49,7 @@ export const DOCS_NAV: DocsNavItem[] = [
 			{ title: 'Stack', path: `${DOCS_ROOT}/contribute/stack` },
 			{ title: 'Repository layout', path: `${DOCS_ROOT}/contribute/repo-layout` },
 			{ title: 'Environment and database', path: `${DOCS_ROOT}/contribute/env-and-db` },
+			{ title: 'Docker deployment', path: `${DOCS_ROOT}/contribute/docker` },
 			{ title: 'Workflows', path: `${DOCS_ROOT}/contribute/workflows` },
 			{ title: 'Architecture', path: `${DOCS_ROOT}/contribute/architecture` }
 		]

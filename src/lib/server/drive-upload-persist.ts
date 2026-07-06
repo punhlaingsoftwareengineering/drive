@@ -14,6 +14,7 @@ import {
 	tigrisKeyNewFileInsideFolder
 } from '$lib/server/drive-storage-layout';
 import { sealFileBuffer, sealFileStream } from '$lib/server/drive-seal';
+import { nextSortOrderInParent } from '$lib/server/drive-sort-order';
 import { db } from '$lib/server/db';
 import { MainFileSchema } from '$lib/server/db/schema/main-schema/main.schema';
 import { localTeamUploadDir, localUserUploadDir } from '$lib/server/local-drive-path';
@@ -32,9 +33,10 @@ export function safeUploadFileName(name: string): string {
 		.trim()
 		.replace(/[/\\]/g, '_');
 	const match = /^(.*?)(\.[^.]+)?$/.exec(normalized);
-	const base = (match?.[1] ?? normalized).slice(0, 200) || 'unnamed';
+	const base = (match?.[1] ?? normalized).slice(0, 200);
 	const ext = match?.[2] ?? '';
-	return (base + ext).slice(0, 220);
+	const combined = base ? base + ext : ext || 'unnamed';
+	return combined.slice(0, 220);
 }
 
 type PersistContext = {
@@ -93,6 +95,12 @@ export async function persistSealedUpload(
 
 	const sealed = sealFileBuffer(plain, { mime });
 	const id = randomUUID();
+	const sortOrder = await nextSortOrderInParent(
+		parentFolder?.id ?? null,
+		teamId
+			? { kind: 'team', teamId, storageProvider: provider }
+			: { kind: 'user', ownerId: userId, storageProvider: provider }
+	);
 
 	const baseInsert = {
 		id,
@@ -108,7 +116,8 @@ export async function persistSealedUpload(
 		trashedAt: null,
 		isEncrypted: true,
 		isCompressed: sealed.isCompressed,
-		color: 'base' as const
+		color: 'base' as const,
+		sortOrder
 	};
 
 	if (provider === 'local') {
@@ -184,6 +193,13 @@ export async function persistSealedUploadFromPath(
 		);
 	}
 
+	const sortOrder = await nextSortOrderInParent(
+		parentFolder?.id ?? null,
+		teamId
+			? { kind: 'team', teamId, storageProvider: provider }
+			: { kind: 'user', ownerId: userId, storageProvider: provider }
+	);
+
 	const baseInsert = {
 		id,
 		ownerId: userId,
@@ -198,7 +214,8 @@ export async function persistSealedUploadFromPath(
 		trashedAt: null,
 		isEncrypted: true,
 		isCompressed: false,
-		color: 'base' as const
+		color: 'base' as const,
+		sortOrder
 	};
 
 	if (provider === 'local') {

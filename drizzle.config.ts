@@ -1,13 +1,15 @@
+import { config } from 'dotenv';
 import { defineConfig } from 'drizzle-kit';
 
+config({ path: '.env' });
+
 /**
- * Env is not loaded here — use Deno’s env loader when invoking drizzle-kit, e.g.
- * `deno task db:push` (loads .env via `--env-file=.env`).
- * The SvelteKit app uses `$env/dynamic/private` / Vite’s env handling instead of dotenv.
+ * Loads `.env` so `pnpm db:*` works without manually exporting `DATABASE_URL`.
+ * The SvelteKit app uses `$env/dynamic/private` / Vite’s env handling at runtime.
  */
 if (!process.env.DATABASE_URL) {
 	throw new Error(
-		'DATABASE_URL is not set. Use `deno task db:*` (loads .env via --env-file), or export DATABASE_URL.'
+		'DATABASE_URL is not set. Add it to `.env` or export it before running drizzle-kit.'
 	);
 }
 

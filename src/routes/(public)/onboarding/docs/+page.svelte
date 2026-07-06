@@ -62,7 +62,7 @@
 				<LucideGitBranch class="mb-2 size-10 text-accent" aria-hidden="true" />
 				<h2 class="d-card-title text-lg">Contribute</h2>
 				<p class="text-sm text-base-content/70">
-					Stack, repo layout, environment, workflows, and architecture.
+					Stack, repo layout, environment, Docker deployment, workflows, and architecture.
 				</p>
 			</div>
 		</a>

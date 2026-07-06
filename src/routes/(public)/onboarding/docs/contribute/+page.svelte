@@ -3,6 +3,7 @@
 	import { localizeHref } from '$lib/paraglide/runtime';
 	import {
 		LucideBookOpen,
+		LucideContainer,
 		LucideFolderTree,
 		LucideGitBranch,
 		LucideLayers,
@@ -30,9 +31,15 @@
 			Icon: LucideServerCog
 		},
 		{
+			href: '/onboarding/docs/contribute/docker',
+			title: 'Docker deployment',
+			desc: 'Pull or build the image, Compose, volumes, and all runtime env vars.',
+			Icon: LucideContainer
+		},
+		{
 			href: '/onboarding/docs/contribute/workflows',
 			title: 'Workflows',
-			desc: '`deno task dev`, `deno task check`, `deno task test`.',
+			desc: '`pnpm dev`, `pnpm check`, `pnpm test`.',
 			Icon: LucideWorkflow
 		},
 		{

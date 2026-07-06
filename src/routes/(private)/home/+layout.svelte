@@ -5,6 +5,7 @@
 	import { fetchWithSession } from '$lib/client/fetch-session';
 	import { pathWithoutBase } from '$lib/url/path-without-base';
 	import { resolveHref } from '$lib/url/resolve-href';
+	import { isUuidLike } from '$lib/tool/team-slug';
 	import { page } from '$app/state';
 	import { daisyDropdown } from '$lib/actions/daisy-dropdown';
 	import { uploadFilesWithProgress } from '$lib/client/upload-drive';
@@ -25,6 +26,7 @@
 	import { getUserInitials } from '$lib/tool/user-initials';
 	import AppProfileDialog from '$lib/components/app-profile-dialog.svelte';
 	import AppSettingsDialog from '$lib/components/app-settings-dialog.svelte';
+	import TeamScopeNav from '$lib/components/drive/team-scope-nav.svelte';
 	import {
 		LucideArrowLeft,
 		LucideClock,
@@ -231,6 +233,7 @@
 			bumpDriveListRefresh();
 			const j = (await r.json()) as {
 				teamId?: string;
+				slug?: string;
 				addedMembers?: number;
 				pendingInvites?: number;
 			};
@@ -242,9 +245,11 @@
 				StatusColorEnum.SUCCESS
 			);
 			newTeamDialog?.close();
-			const id = j.teamId;
-			if (id) {
-				void goto(resolve(`/home/team/${id}`));
+			const slug = j.slug;
+			if (slug) {
+				void goto(resolveHref(`/home/team/${slug}`));
+			} else if (j.teamId) {
+				void goto(resolveHref(`/home/team/${j.teamId}`));
 			}
 		} catch (e) {
 			toastService.addToast(
@@ -333,6 +338,24 @@
 		}
 	}
 
+	function appendFolderCrumbs(
+		base: BreadcrumbItem[],
+		ancestors: { href: string; name: string }[],
+		current: { name: string } | null
+	): BreadcrumbItem[] {
+		const crumbs = [...base];
+		for (const a of ancestors) {
+			crumbs.push({ href: a.href, label: a.name, isLast: false });
+		}
+		if (current) {
+			crumbs.push({ href: null, label: current.name, isLast: true });
+		} else if (crumbs.length > 0) {
+			const last = crumbs[crumbs.length - 1];
+			crumbs[crumbs.length - 1] = { ...last, href: null, isLast: true };
+		}
+		return crumbs;
+	}
+
 	const breadcrumbs = $derived.by((): BreadcrumbItem[] => {
 		if (data.trashView) {
 			return [
@@ -347,40 +370,47 @@
 			];
 		}
 		if (data.sharedView) {
-			if (data.currentFolder) {
-				return [
-					{ href: resolve('/home'), label: 'Home', isLast: false },
-					{ href: resolve('/home/shared'), label: 'Shared', isLast: false },
-					{ href: null, label: data.currentFolder.name, isLast: true }
-				];
-			}
-			return [
+			const base = [
 				{ href: resolve('/home'), label: 'Home', isLast: false },
-				{ href: null, label: 'Shared', isLast: true }
+				{ href: resolve('/home/shared'), label: 'Shared', isLast: false }
 			];
+			if (data.currentFolder) {
+				return appendFolderCrumbs(base, data.folderAncestors ?? [], data.currentFolder);
+			}
+			return appendFolderCrumbs(base, [], null);
 		}
-		if (data.teamView) {
-			if (data.currentFolder) {
-				return [
-					{ href: resolve('/home'), label: 'Home', isLast: false },
-					{
-						href: resolve(`/home/team/${data.teamView.id}`),
-						label: data.teamView.name,
-						isLast: false
-					},
-					{ href: null, label: data.currentFolder.name, isLast: true }
-				];
-			}
-			return [
+		if (data.teamView && data.teamScopeView) {
+			const teamPath = `/home/team/${data.teamView.slug}`;
+			const teamBase = resolveHref(teamPath);
+			const base: BreadcrumbItem[] = [
 				{ href: resolve('/home'), label: 'Home', isLast: false },
-				{ href: null, label: data.teamView.name, isLast: true }
+				{ href: teamBase, label: data.teamView.name, isLast: false }
 			];
+			const scope = data.teamScopeView;
+			if (scope === 'shared') {
+				base.push({
+					href: resolveHref(`${teamPath}/shared`),
+					label: 'Shared',
+					isLast: !data.currentFolder
+				});
+			} else if (scope === 'recent') {
+				return [...base, { href: null, label: 'Recent', isLast: true }];
+			} else if (scope === 'trash') {
+				return [...base, { href: null, label: 'Trash', isLast: true }];
+			} else if (scope === 'dashboard') {
+				return [...base, { href: null, label: 'Dashboard', isLast: true }];
+			}
+			if (data.currentFolder) {
+				return appendFolderCrumbs(base, data.folderAncestors ?? [], data.currentFolder);
+			}
+			return appendFolderCrumbs(base, [], null);
 		}
 		if (data.currentFolder) {
-			return [
-				{ href: resolve('/home'), label: 'Home', isLast: false },
-				{ href: null, label: data.currentFolder.name, isLast: true }
-			];
+			return appendFolderCrumbs(
+				[{ href: resolve('/home'), label: 'Home', isLast: false }],
+				data.folderAncestors ?? [],
+				data.currentFolder
+			);
 		}
 
 		const segments = pathWithoutBase(page.url.pathname).split('/').filter(Boolean);
@@ -391,6 +421,7 @@
 		if (segments[0] === 'home' && segments.length >= 2) {
 			const crumbs: BreadcrumbItem[] = [{ href: resolve('/home'), label: 'Home', isLast: false }];
 			for (let i = 1; i < segments.length; i++) {
+				if (isUuidLike(segments[i])) continue;
 				const isLast = i === segments.length - 1;
 				const pathToHere = '/' + segments.slice(0, i + 1).join('/');
 				crumbs.push({
@@ -402,11 +433,13 @@
 			return crumbs;
 		}
 
-		return segments.map((segment, i) => ({
+		return segments
+			.filter((segment) => !isUuidLike(segment))
+			.map((segment, i, arr) => ({
 			href:
-				i === segments.length - 1 ? null : resolveHref('/' + segments.slice(0, i + 1).join('/')),
+				i === arr.length - 1 ? null : resolveHref('/' + arr.slice(0, i + 1).join('/')),
 			label: formatBreadcrumbLabel(segment),
-			isLast: i === segments.length - 1
+			isLast: i === arr.length - 1
 		}));
 	});
 
@@ -415,7 +448,15 @@
 			if (data.trashView) return resolve('/home/trash');
 			if (data.recentView) return resolve('/home');
 			if (data.sharedView) return resolve('/home/shared');
-			if (data.teamView) return resolve(`/home/team/${data.teamView.id}`);
+			if (data.teamView && data.teamScopeView) {
+				const teamPath = `/home/team/${data.teamView.slug}`;
+				if (data.teamScopeView === 'shared') return resolveHref(`${teamPath}/shared`);
+				if (data.teamScopeView === 'recent') return resolveHref(`${teamPath}/recent`);
+				if (data.teamScopeView === 'trash') return resolveHref(`${teamPath}/trash`);
+				if (data.teamScopeView === 'dashboard') return resolveHref(`${teamPath}/dashboard`);
+				return resolveHref(teamPath);
+			}
+			if (data.teamView) return resolveHref(`/home/team/${data.teamView.slug}`);
 			return resolve('/home');
 		}
 		return data.currentFolder.upHref;
@@ -426,6 +467,11 @@
 		if (data.trashView) return 'Trash';
 		if (data.recentView) return 'Recent';
 		if (data.sharedView) return data.currentFolder?.name ?? 'Shared';
+		if (data.teamView && data.teamScopeView) {
+			if (data.currentFolder) return data.currentFolder.name;
+			if (data.teamScopeView === 'home') return data.teamView.name;
+			return formatBreadcrumbLabel(data.teamScopeView);
+		}
 		if (data.teamView) return data.currentFolder?.name ?? data.teamView.name;
 		if (data.currentFolder) return data.currentFolder.name;
 		const segments = pathWithoutBase(page.url.pathname).split('/').filter(Boolean);
@@ -435,7 +481,16 @@
 	});
 
 	const newActionsDisabled = $derived(
-		Boolean(data.sharedView || data.trashView || data.recentView)
+		Boolean(
+			data.sharedView ||
+				data.trashView ||
+				data.recentView ||
+				(data.teamView &&
+					data.teamScopeView &&
+					(data.teamScopeView === 'shared' ||
+						data.teamScopeView === 'recent' ||
+						data.teamScopeView === 'trash'))
+		)
 	);
 	const newActionsTooltip = $derived(
 		data.trashView
@@ -444,12 +499,18 @@
 				? 'New folders and uploads are only available in Home, not in Shared.'
 				: data.recentView
 					? 'New folders and uploads are only available in Home, not on Recent.'
-					: ''
+					: data.teamView && data.teamScopeView === 'trash'
+						? 'New folders and uploads are only available in this team’s Home, not in Trash.'
+						: data.teamView && data.teamScopeView === 'shared'
+							? 'New folders and uploads are only available in this team’s Home, not in Shared.'
+							: data.teamView && data.teamScopeView === 'recent'
+								? 'New folders and uploads are only available in this team’s Home, not on Recent.'
+								: ''
 	);
 </script>
 
-<div class="my-app flex min-h-screen flex-col">
-	<div class="d-navbar bg-base-100 shadow-sm">
+<div class="my-app my-drive-shell flex min-h-screen flex-col">
+	<div class="d-navbar shrink-0 bg-base-100 shadow-sm">
 		<div class="d-navbar-start gap-2">
 			<label
 				for="drive-sidebar-drawer"
@@ -520,11 +581,13 @@
 			</div>
 		</div>
 	</div>
-	<main class="my-main flex min-h-0 flex-1 flex-col">
+	<main class="my-main flex min-h-0 flex-1 flex-col overflow-hidden">
 		<div class="d-drawer min-h-0 flex-1 lg:d-drawer-open">
 			<input id="drive-sidebar-drawer" type="checkbox" class="d-drawer-toggle" />
-			<div class="d-drawer-content flex min-h-0 flex-1 flex-col px-3 py-4 sm:px-5 sm:py-5">
-				<div class="flex min-h-0 min-w-0 flex-1 flex-col">
+			<div
+				class="d-drawer-content flex min-h-0 flex-1 flex-col overflow-y-auto px-3 py-4 sm:px-5 sm:py-5"
+			>
+				<div class="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
 					<div
 						class="grid shrink-0 grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-2 rounded-lg bg-base-100 p-4"
 					>
@@ -579,16 +642,19 @@
 							</div>
 						{/if}
 					</div>
+					{#if data.teamView && data.teamScopeView}
+						<TeamScopeNav team={data.teamView} activeView={data.teamScopeView} />
+					{/if}
 					<div class="flex min-h-0 flex-1 flex-col pt-4">
 						{@render children?.()}
 					</div>
 				</div>
 			</div>
-			<div class="d-drawer-side z-20">
+			<div class="d-drawer-side z-20 lg:overflow-hidden">
 				<label for="drive-sidebar-drawer" class="d-drawer-overlay" aria-label="Close navigation"
 				></label>
-				<aside class="flex h-full w-64 flex-col bg-base-100 p-4">
-					<!-- NEW: folder or upload (disabled on Shared / Trash with tooltip) -->
+				<aside class="flex h-full w-64 min-h-0 flex-col bg-base-100 p-4 lg:overflow-hidden">
+					<div class="shrink-0">
 					{#if newActionsDisabled}
 						<div class="d-tooltip d-tooltip-bottom w-full" data-tip={newActionsTooltip}>
 							<button
@@ -647,6 +713,7 @@
 							</ul>
 						</div>
 					{/if}
+					</div>
 
 					<dialog bind:this={uploadDialog} class="d-modal">
 						<div class="d-modal-box max-w-lg">
@@ -654,7 +721,7 @@
 							<p class="py-2 text-sm text-base-content/70">
 								Using storage: <strong>{storageProviderLabel(activeStorageProvider)}</strong>
 								— local files go to <code class="text-xs">~/Documents/znl-drive/</code>; Tigris uses
-								your bucket.
+								your bucket. All file types supported, including custom extensions.
 							</p>
 							<input
 								bind:this={fileInputEl}
@@ -852,10 +919,10 @@
 						</div>
 					</dialog>
 
-					<span class="d-divider"></span>
+					<span class="d-divider shrink-0"></span>
 
 					<!-- Pages -->
-					<div class="flex flex-col gap-2">
+					<div class="flex shrink-0 flex-col gap-2">
 						<a
 							class="d-btn d-btn-wide d-btn-ghost d-btn-outline d-btn-primary"
 							href={resolve('/home')}
@@ -893,8 +960,8 @@
 						>
 					</div>
 
-					<span class="d-divider"></span>
-					<div class="flex flex-col gap-2">
+					<span class="d-divider shrink-0"></span>
+					<div class="flex flex-col gap-2 lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
 						<p class="px-1 text-xs font-semibold tracking-wide text-base-content/50 uppercase">
 							Teams
 						</p>
@@ -906,8 +973,12 @@
 						{:else}
 							{#each data.teams as t (t.id)}
 								<a
-									class="d-btn d-btn-wide d-btn-ghost d-btn-outline d-btn-sm"
-									href={resolve(`/home/team/${t.id}`)}
+									class="d-btn d-btn-wide d-btn-ghost d-btn-outline d-btn-sm {data.teamView?.id ===
+									t.id
+										? 'd-btn-active'
+										: ''}"
+									href={resolveHref(`/home/team/${t.slug}`)}
+									aria-current={data.teamView?.id === t.id ? 'page' : undefined}
 								>
 									<LucideUsers class="size-4" />
 									<span class="truncate text-left">{t.name}</span>
