@@ -1,6 +1,10 @@
 import { getMainFileIfAccessible } from '$lib/server/drive-file-access';
 import { db } from '$lib/server/db';
 import { requireApiSession } from '$lib/server/require-api-session';
+import {
+	assertTeamKeyCanAccessFileRow,
+	assertTeamKeyHas
+} from '$lib/server/team-api-key-scope';
 import { MainFileSchema, MainFileShareSchema } from '$lib/server/db/schema/main-schema/main.schema';
 import { error, json } from '@sveltejs/kit';
 import { and, eq, isNull } from 'drizzle-orm';
@@ -17,6 +21,7 @@ const bodySchema = z
 
 export const POST: RequestHandler = async ({ request, params }) => {
 	const session = await requireApiSession(request);
+	assertTeamKeyHas(session, 'drive.share');
 
 	const id = params.id;
 	if (!id) throw error(400, 'Missing id');
@@ -35,6 +40,7 @@ export const POST: RequestHandler = async ({ request, params }) => {
 
 	const row = await getMainFileIfAccessible(session.user.id, id);
 	if (!row || row.trashedAt) throw error(404, 'Not found');
+	assertTeamKeyCanAccessFileRow(session, row);
 	if (row.itemType !== 'file' && row.itemType !== 'folder') {
 		throw error(400, 'Only files and folders can be shared');
 	}

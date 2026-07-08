@@ -6,18 +6,14 @@ vi.mock('$lib/server/require-api-session', () => ({
 	})
 }));
 
-vi.mock('$lib/server/team-api-scope', async (importOriginal) => {
-	const actual = await importOriginal<typeof import('$lib/server/team-api-scope')>();
-	return {
-		...actual,
-		resolveTeamApiContext: vi.fn()
-	};
-});
+vi.mock('$lib/server/team-access', () => ({
+	isTeamMember: vi.fn(),
+	requireTeamMember: vi.fn()
+}));
 
 vi.mock('$lib/server/db', () => ({
 	db: {
-		select: vi.fn(),
-		execute: vi.fn()
+		select: vi.fn()
 	}
 }));
 
@@ -27,11 +23,6 @@ describe('team-scoped drive APIs', () => {
 	});
 
 	it('GET /api/drive/trash rejects invalid team id (400)', async () => {
-		const teamApi = await import('$lib/server/team-api-scope');
-		(teamApi.resolveTeamApiContext as ReturnType<typeof vi.fn>).mockRejectedValue(
-			Object.assign(new Error('Invalid team id'), { status: 400 })
-		);
-
 		const { GET } = await import('./trash/+server');
 		const url = new URL('http://localhost/api/drive/trash?storageProvider=local&teamId=not-uuid');
 		const request = new Request(url);
@@ -40,13 +31,19 @@ describe('team-scoped drive APIs', () => {
 	});
 
 	it('GET /api/drive/trash rejects non-member (403)', async () => {
-		const teamApi = await import('$lib/server/team-api-scope');
-		(teamApi.resolveTeamApiContext as ReturnType<typeof vi.fn>).mockRejectedValue(
+		const teamAccess = await import('$lib/server/team-access');
+		(teamAccess.requireTeamMember as ReturnType<typeof vi.fn>).mockRejectedValue(
 			Object.assign(new Error('Forbidden'), { status: 403 })
 		);
 
-		const { GET } = await import('./trash/+server');
+		const { db } = await import('$lib/server/db');
 		const teamId = '9a3d5a6e-7f68-4f2a-9f7d-20e7a4c9e6d1';
+		const limit = vi.fn().mockResolvedValue([{ id: teamId, storageProvider: 'local' }]);
+		const where = vi.fn().mockReturnValue({ limit });
+		const from = vi.fn().mockReturnValue({ where });
+		(db.select as ReturnType<typeof vi.fn>).mockReturnValue({ from });
+
+		const { GET } = await import('./trash/+server');
 		const url = new URL(`http://localhost/api/drive/trash?storageProvider=local&teamId=${teamId}`);
 		const request = new Request(url);
 
@@ -54,11 +51,6 @@ describe('team-scoped drive APIs', () => {
 	});
 
 	it('GET /api/drive/stats rejects invalid team id (400)', async () => {
-		const teamApi = await import('$lib/server/team-api-scope');
-		(teamApi.resolveTeamApiContext as ReturnType<typeof vi.fn>).mockRejectedValue(
-			Object.assign(new Error('Invalid team id'), { status: 400 })
-		);
-
 		const { GET } = await import('./stats/+server');
 		const url = new URL('http://localhost/api/drive/stats?storageProvider=local&teamId=bad');
 		const request = new Request(url);

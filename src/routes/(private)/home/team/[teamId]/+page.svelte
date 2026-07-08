@@ -8,11 +8,16 @@
 	import { uploadFilesWithProgress } from '$lib/client/upload-drive';
 	import { mapApiFile, type ApiDriveFile, type DriveItem } from '$lib/components/drive/drive-item';
 	import { createDriveFileActions } from '$lib/components/drive/use-drive-file-actions.svelte';
+	import { createDriveSelection } from '$lib/components/drive/use-drive-selection.svelte';
+	import { createDriveBulkActions } from '$lib/components/drive/use-drive-bulk-actions.svelte';
 	import { useDriveListLoader } from '$lib/components/drive/use-drive-list-loader.svelte';
 	import DriveListStatus from '$lib/components/drive/drive-list-status.svelte';
 	import DriveBrowseTable from '$lib/components/drive/drive-browse-table.svelte';
 	import DriveFileActionsMenu from '$lib/components/drive/drive-file-actions-menu.svelte';
 	import DriveFileDialogs from '$lib/components/drive/drive-file-dialogs.svelte';
+	import DriveSelectionBar from '$lib/components/drive/drive-selection-bar.svelte';
+	import DriveMoveFolderDialog from '$lib/components/drive/drive-move-folder-dialog.svelte';
+	import DriveBulkColorDialog from '$lib/components/drive/drive-bulk-color-dialog.svelte';
 	import type { StorageProviderId } from '$lib/model/storage-provider';
 	import { storageProviderLabel } from '$lib/model/storage-provider';
 	import { bumpDriveListRefresh } from '$lib/state/drive-refresh.svelte';
@@ -30,14 +35,29 @@
 	let fileDragDepth = $state(0);
 	let dropUploading = $state(false);
 	let dropProgress = $state(0);
+	let moveFolderDialog = $state<DriveMoveFolderDialog | null>(null);
 
+	const selection = createDriveSelection();
 	const actions = createDriveFileActions({
 		menuElementId: 'team-file-actions-menu-float',
 		buttonIdPrefix: 'team-file-actions-btn-',
 		getRows: () => rows
 	});
+	const bulk = createDriveBulkActions({
+		selection,
+		getRows: () => rows,
+		storageProvider: () => teamStorage(),
+		teamId: () => data.teamView?.id
+	});
 
-	onMount(() => actions.attachMenuListeners());
+	onMount(() => {
+		const detachMenu = actions.attachMenuListeners();
+		const detachSelection = selection.attachEscapeListener();
+		return () => {
+			detachMenu();
+			detachSelection();
+		};
+	});
 	useDriveListLoader(loadFiles);
 
 	const teamBase = $derived(
@@ -54,6 +74,7 @@
 	}
 
 	async function loadFiles() {
+		selection.clear();
 		loading = true;
 		loadError = null;
 		try {
@@ -152,6 +173,14 @@
 			);
 		}
 	}
+
+	async function handleMove(ids: string[], parentId: string | null) {
+		await bulk.moveIdsToParent(ids, parentId);
+	}
+
+	function openMoveDialog() {
+		moveFolderDialog?.show(page.url.searchParams.get('folder'));
+	}
 </script>
 
 <div class="flex min-h-0 flex-1 flex-col gap-6 pb-8">
@@ -185,10 +214,28 @@
 		ondrop={onDropCard}
 	>
 		<div class="d-card-body flex min-h-0 flex-1 flex-col p-0">
+			<DriveSelectionBar
+				count={selection.count}
+				busy={bulk.busy}
+				showDownload
+				showTrash={bulk.allSelectedEditable()}
+				showPin={bulk.allSelectedEditable()}
+				showStar={bulk.allSelectedEditable()}
+				showColor={bulk.allSelectedEditable()}
+				showMove={bulk.allSelectedEditable()}
+				onClear={() => selection.clear()}
+				onDownload={() => void bulk.bulkDownload()}
+				onTrash={() => void bulk.bulkTrash()}
+				onPin={() => void bulk.bulkPin()}
+				onStar={() => void bulk.bulkStar()}
+				onColor={() => bulk.openBulkColor()}
+				onMove={openMoveDialog}
+			/>
 			<DriveBrowseTable
 				{rows}
 				{loading}
 				{actions}
+				{selection}
 				buttonIdPrefix="team-file-actions-btn-"
 				currentFolder={data.currentFolder}
 				{backFolderHref}
@@ -197,6 +244,7 @@
 				onEnterFolder={enterFolder}
 				onScroll={actions.closeFileActionsMenu}
 				onReorder={handleReorder}
+				onMove={handleMove}
 			/>
 		</div>
 	</div>
@@ -204,3 +252,11 @@
 
 <DriveFileActionsMenu {actions} menuElementId="team-file-actions-menu-float" />
 <DriveFileDialogs {actions} />
+<DriveBulkColorDialog {bulk} />
+<DriveMoveFolderDialog
+	bind:this={moveFolderDialog}
+	storageProvider={teamStorage()}
+	teamId={data.teamView?.id}
+	excludeIds={[...selection.selectedIds]}
+	onSelect={(parentId) => void bulk.moveToParent(parentId)}
+/>

@@ -41,7 +41,23 @@ cd drive
 docker build -t znl-drive .
 ```
 
-The multi-stage `Dockerfile` builds the app, then ships a slim **Node 24 Alpine** runtime. Build-time placeholders are used for auth/DB so **secrets are not required during `docker build`**; you must still set runtime env vars when starting the container.
+Or use the GHCR helper scripts (tags `ghcr.io/punhlaingsoftwareengineering/drive`):
+
+```powershell
+# One-time: copy scripts/docker-ghcr.env.example → scripts/docker-ghcr.env and set GHCR_USER
+cp scripts/docker-ghcr.env.example scripts/docker-ghcr.env
+
+pnpm docker:build
+$env:GHCR_TOKEN = 'ghp_...'   # PAT with write:packages
+$env:GHCR_USER = 'your-github-username'
+pnpm docker:push
+```
+
+On Linux/macOS: `./scripts/docker-build.sh` and `./scripts/docker-push.sh`.
+
+The multi-stage `Dockerfile` builds with **pnpm** + Node 24, then ships a slim Alpine runtime. Build-time placeholders are used for auth/DB so **secrets are not required during `docker build`**; you must still set runtime env vars when starting the container.
+
+**Private GHCR:** After the first push, set package visibility to **private** under GitHub → Organization → Packages → `drive` → Package settings.
 
 ## Run with Docker Compose (recommended)
 

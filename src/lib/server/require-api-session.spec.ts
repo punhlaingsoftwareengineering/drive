@@ -43,7 +43,8 @@ describe('requireApiSession', () => {
 
 		const req = new Request('http://localhost/api/drive/files', { headers: { cookie: 'x=y' } });
 		await expect(requireApiSession(req)).resolves.toEqual({
-			user: { id: 'u1', email: 'a@example.com', name: 'Alice' }
+			user: { id: 'u1', email: 'a@example.com', name: 'Alice' },
+			viaApiKey: false
 		});
 		expect(auth.api.getSession).toHaveBeenCalledTimes(1);
 		expect(tryResolveUserFromDeveloperApiKey).not.toHaveBeenCalled();
@@ -55,17 +56,55 @@ describe('requireApiSession', () => {
 		tryResolveUserFromDeveloperApiKey.mockResolvedValue({
 			id: 'u2',
 			email: 'dev@example.com',
-			name: 'Dev'
+			name: 'Dev',
+			apiKeyId: 'key-1',
+			kind: 'user',
+			teamId: null,
+			permissions: [],
+			limits: { maxTeams: null, maxFolders: null, maxFiles: null }
 		});
 
 		const req = new Request('http://localhost/api/drive/files', {
 			headers: { authorization: 'Bearer znldv_123456789012_secret' }
 		});
 		await expect(requireApiSession(req)).resolves.toEqual({
-			user: { id: 'u2', email: 'dev@example.com', name: 'Dev' }
+			user: { id: 'u2', email: 'dev@example.com', name: 'Dev' },
+			viaApiKey: true,
+			apiKeyId: 'key-1',
+			apiKeyLimits: { maxTeams: null, maxFolders: null, maxFiles: null },
+			apiKeyTeamId: null,
+			apiKeyPermissions: []
 		});
 		expect(auth.api.getSession).toHaveBeenCalledTimes(1);
 		expect(tryResolveUserFromDeveloperApiKey).toHaveBeenCalledTimes(1);
+	});
+
+	it('returns team key session shape when API key is team-scoped', async () => {
+		const { requireApiSession, auth, tryResolveUserFromDeveloperApiKey } = await importSubject();
+		auth.api.getSession.mockResolvedValue(null);
+		const teamId = '9a3d5a6e-7f68-4f2a-9f7d-20e7a4c9e6d1';
+		tryResolveUserFromDeveloperApiKey.mockResolvedValue({
+			id: 'u2',
+			email: 'dev@example.com',
+			name: 'Dev',
+			apiKeyId: 'key-team-1',
+			kind: 'team',
+			teamId,
+			permissions: ['drive.read', 'drive.write'],
+			limits: { maxTeams: null, maxFolders: 50, maxFiles: 5000 }
+		});
+
+		const req = new Request('http://localhost/api/drive/files', {
+			headers: { Authorization: 'Bearer znltv_AbCdEfGhIjKl_secret' }
+		});
+		await expect(requireApiSession(req)).resolves.toEqual({
+			user: { id: 'u2', email: 'dev@example.com', name: 'Dev' },
+			viaApiKey: true,
+			apiKeyId: 'key-team-1',
+			apiKeyLimits: { maxTeams: null, maxFolders: 50, maxFiles: 5000 },
+			apiKeyTeamId: teamId,
+			apiKeyPermissions: ['drive.read', 'drive.write']
+		});
 	});
 
 	it('throws 401 when neither cookie session nor API key is valid', async () => {

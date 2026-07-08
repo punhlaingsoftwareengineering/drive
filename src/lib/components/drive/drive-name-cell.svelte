@@ -17,7 +17,10 @@
 	<button
 		type="button"
 		class="inline-flex max-w-full min-w-0 items-center gap-2 text-left font-medium hover:underline"
-		onclick={() => onEnterFolder?.(item)}
+		onclick={(e) => {
+			e.stopPropagation();
+			onEnterFolder?.(item);
+		}}
 	>
 		<LucideFolder class="size-5 shrink-0 {fileLabelIconClass(item.color)}" aria-hidden="true" />
 		<span class="truncate">{item.name}</span>

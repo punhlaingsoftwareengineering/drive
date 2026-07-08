@@ -1,4 +1,6 @@
 import { isTeamMember } from '$lib/server/team-access';
+import { resolveEffectiveTeamIdParam } from '$lib/server/team-api-key-scope';
+import type { DriveApiSession } from '$lib/server/require-api-session';
 import { STORAGE_PROVIDERS, type StorageProviderId } from '$lib/model/storage-provider';
 import { normalizeUploadMime } from '$lib/tool/mime-kind';
 import { error } from '@sveltejs/kit';
@@ -29,7 +31,16 @@ function parseOptionalUuid(raw: string | null, label: string): string | null {
 	return p.data;
 }
 
-async function parseOptionalTeamId(userId: string, raw: string | null): Promise<string | null> {
+async function parseOptionalTeamId(
+	userId: string,
+	raw: string | null,
+	session?: DriveApiSession
+): Promise<string | null> {
+	if (session) {
+		const teamId = resolveEffectiveTeamIdParam(session, parseOptionalUuid(raw, 'team id'));
+		if (teamId && !(await isTeamMember(userId, teamId))) throw error(403, 'Forbidden');
+		return teamId;
+	}
 	const teamId = parseOptionalUuid(raw, 'team id');
 	if (!teamId) return null;
 	if (!(await isTeamMember(userId, teamId))) throw error(403, 'Forbidden');
@@ -40,7 +51,8 @@ async function parseOptionalTeamId(userId: string, raw: string | null): Promise<
 export async function parseChunkUploadQuery(
 	url: URL,
 	userId: string,
-	chunkIndex: number
+	chunkIndex: number,
+	session?: DriveApiSession
 ): Promise<{
 	chunkIndex: number;
 	chunkCount: number;
@@ -59,7 +71,7 @@ export async function parseChunkUploadQuery(
 	let init: ChunkUploadInit | undefined;
 	if (chunkIndex === 0) {
 		const parentId = parseOptionalUuid(url.searchParams.get('parentId'), 'parent folder');
-		const teamId = await parseOptionalTeamId(userId, url.searchParams.get('teamId'));
+		const teamId = await parseOptionalTeamId(userId, url.searchParams.get('teamId'), session);
 		const fileName = url.searchParams.get('fileName')?.trim() || 'unnamed';
 		init = {
 			fileName,
@@ -75,7 +87,8 @@ export async function parseChunkUploadQuery(
 
 export async function parseSimpleUploadQuery(
 	url: URL,
-	userId: string
+	userId: string,
+	session?: DriveApiSession
 ): Promise<{
 	storageProvider: StorageProviderId;
 	parentId: string | null;
@@ -87,7 +100,7 @@ export async function parseSimpleUploadQuery(
 	if (!fileName) throw error(400, 'Missing fileName');
 
 	const parentId = parseOptionalUuid(url.searchParams.get('parentId'), 'parent folder');
-	const teamId = await parseOptionalTeamId(userId, url.searchParams.get('teamId'));
+	const teamId = await parseOptionalTeamId(userId, url.searchParams.get('teamId'), session);
 
 	return {
 		storageProvider: parseStorageProvider(url.searchParams.get('storageProvider')),

@@ -4,8 +4,15 @@ import tailwindcss from '@tailwindcss/vite';
 import { defineConfig, type UserWorkspaceConfig } from 'vitest/config';
 import { playwright } from '@vitest/browser-playwright';
 import { sveltekit } from '@sveltejs/kit/vite';
+import { loadAppEnv, viteAllowedHosts } from './vite.allowed-hosts';
 
-export default defineConfig({
+export default defineConfig(({ mode }) => {
+	const env = loadAppEnv(mode);
+
+	return {
+	server: {
+		allowedHosts: viteAllowedHosts(env)
+	},
 	plugins: [
 		tailwindcss(),
 		sveltekit(),
@@ -15,8 +22,8 @@ export default defineConfig({
 	test: {
 		expect: { requireAssertions: true },
 		projects: (() => {
-			// Default to server-only tests so `deno task test:unit -- --run` works on machines
-			// without Playwright browsers installed. Opt-in with: VITEST_BROWSER=1 deno task test:unit
+			// Default to server-only tests so `pnpm test:unit -- --run` works on machines
+			// without Playwright browsers installed. Opt-in with: VITEST_BROWSER=1 pnpm test:unit
 			const enableBrowser = process.env.VITEST_BROWSER === '1';
 			return [
 				...(enableBrowser
@@ -55,4 +62,5 @@ export default defineConfig({
 			];
 		})() as UserWorkspaceConfig[]
 	}
+	};
 });

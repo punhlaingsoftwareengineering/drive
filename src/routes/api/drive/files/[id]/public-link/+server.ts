@@ -1,5 +1,9 @@
 import { getMainFileIfAccessible, requireMainFileForMutation } from '$lib/server/drive-file-access';
 import { requireApiSession } from '$lib/server/require-api-session';
+import {
+	assertTeamKeyCanAccessFileRow,
+	assertTeamKeyHas
+} from '$lib/server/team-api-key-scope';
 import { appAbsoluteUrlFromRequest } from '$lib/server/app-absolute-url';
 import { db } from '$lib/server/db';
 import {
@@ -18,14 +22,17 @@ function newToken(): string {
 
 export const GET: RequestHandler = async ({ request, params }) => {
 	const session = await requireApiSession(request);
+	assertTeamKeyHas(session, 'drive.read');
 	const id = params.id;
 	if (!id) throw error(400, 'Missing id');
 
-	if (!(await getMainFileIfAccessible(session.user.id, id))) {
+	const file = await getMainFileIfAccessible(session.user.id, id);
+	if (!file) {
 		throw error(404, 'Not found');
 	}
+	assertTeamKeyCanAccessFileRow(session, file);
 
-	const [row] = await db
+	const [publicLink] = await db
 		.select({
 			token: MainFilePublicLinkSchema.token,
 			mimeType: MainFileSchema.mimeType,
@@ -43,19 +50,19 @@ export const GET: RequestHandler = async ({ request, params }) => {
 		)
 		.limit(1);
 
-	if (!row) {
+	if (!publicLink) {
 		return json({ public: false as const });
 	}
 
-	const shareUrl = appAbsoluteUrlFromRequest(request.url, `/${row.token}`);
+	const shareUrl = appAbsoluteUrlFromRequest(request.url, `/${publicLink.token}`);
 	const fileDirectUrl =
-		row.itemType === 'file'
-			? appAbsoluteUrlFromRequest(request.url, `/api/public/files/${row.token}`)
+		publicLink.itemType === 'file'
+			? appAbsoluteUrlFromRequest(request.url, `/api/public/files/${publicLink.token}`)
 			: undefined;
 
 	return json({
 		public: true as const,
-		token: row.token,
+		token: publicLink.token,
 		shareUrl,
 		fileDirectUrl
 	});
@@ -63,10 +70,12 @@ export const GET: RequestHandler = async ({ request, params }) => {
 
 export const POST: RequestHandler = async ({ request, params }) => {
 	const session = await requireApiSession(request);
+	assertTeamKeyHas(session, 'drive.share');
 	const id = params.id;
 	if (!id) throw error(400, 'Missing id');
 
 	const item = await requireMainFileForMutation(session.user.id, id);
+	assertTeamKeyCanAccessFileRow(session, item);
 
 	const [existing] = await db
 		.select({
@@ -107,10 +116,12 @@ export const POST: RequestHandler = async ({ request, params }) => {
 
 export const DELETE: RequestHandler = async ({ request, params }) => {
 	const session = await requireApiSession(request);
+	assertTeamKeyHas(session, 'drive.share');
 	const id = params.id;
 	if (!id) throw error(400, 'Missing id');
 
-	await requireMainFileForMutation(session.user.id, id);
+	const item = await requireMainFileForMutation(session.user.id, id);
+	assertTeamKeyCanAccessFileRow(session, item);
 
 	await db
 		.update(MainFilePublicLinkSchema)

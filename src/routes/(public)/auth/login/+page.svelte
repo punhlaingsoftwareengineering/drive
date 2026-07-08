@@ -4,6 +4,9 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import { onMount } from 'svelte';
+	import type { PageData } from './$types';
+
+	let { data }: { data: PageData } = $props();
 
 	function goBack() {
 		if (typeof window !== 'undefined' && window.history.length > 1) {
@@ -156,9 +159,11 @@
 
 				<div class="mt-3 flex flex-col gap-4">
 					<div class="text-xs">
-						Don't have an account? <a href={resolve(`/auth/signup`)} class="d-link d-link-info"
-							>SIGNUP</a
-						>
+						<a href={data.portalLoginUrl} class="d-link d-link-primary">Sign in on employee portal</a>
+						<span class="text-base-content/60"> (recommended)</span>
+					</div>
+					<div class="text-xs text-base-content/60">
+						Admin fallback only — use the fields above if you have a direct drive account.
 					</div>
 					<div class="text-xs">
 						Forgot password? <a href={resolve(`/auth/forget-password`)} class="d-link d-link-info"

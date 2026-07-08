@@ -11,11 +11,14 @@
 	import DriveSectionHeader from '$lib/components/drive/drive-section-header.svelte';
 	import DriveNameCell from '$lib/components/drive/drive-name-cell.svelte';
 	import DrivePinStarCells from '$lib/components/drive/drive-pin-star-cells.svelte';
+	import DriveSelectionCheckbox from '$lib/components/drive/drive-selection-checkbox.svelte';
+	import type { DriveSelection } from '$lib/components/drive/use-drive-selection.svelte';
 
 	let {
 		rows,
 		loading = false,
 		busyId = null,
+		selection,
 		emptyMessage,
 		purgeLabel,
 		onTogglePin,
@@ -26,6 +29,7 @@
 		rows: TrashDriveItem[];
 		loading?: boolean;
 		busyId?: string | null;
+		selection: DriveSelection;
 		emptyMessage: string;
 		purgeLabel: (purgeIso: string) => string;
 		onTogglePin: (item: TrashDriveItem) => void;
@@ -35,12 +39,26 @@
 	} = $props();
 
 	const partitioned = $derived(partitionDriveRows(rows));
+	const visibleIds = $derived(rows.map((r) => r.id));
+	const headerState = $derived(selection.headerCheckedState(visibleIds));
+
+	function rowClass(item: TrashDriveItem): string {
+		return `border-l-4 transition-colors hover:bg-info/50 ${fileLabelBorderClass(item.color)} ${selection.isSelected(item.id) ? 'bg-primary/10' : ''}`;
+	}
 </script>
 
 <div class="min-h-0 flex-1 overflow-auto">
 	<table class="d-table w-full {DRIVE_TABLE_MIN_WIDTH} d-table-zebra">
 		<thead>
 			<tr class="border-b border-base-300">
+				<th class="w-10 text-center">
+					<DriveSelectionCheckbox
+						checked={headerState === 'all'}
+						indeterminate={headerState === 'some'}
+						ariaLabel="Select all"
+						onchange={() => selection.toggleSelectAll(visibleIds)}
+					/>
+				</th>
 				<th class="min-w-[12rem]">Name</th>
 				<th class="w-28">Size</th>
 				<th class="w-36">Modified</th>
@@ -54,46 +72,34 @@
 			</tr>
 		</thead>
 		<tbody>
-			<DriveSectionHeader colspan={10} label="Trash" />
+			<DriveSectionHeader colspan={11} label="Trash" />
 			{#if rows.length === 0 && !loading}
 				<tr>
-					<td colspan="10" class="py-8 text-center text-base-content/60">{emptyMessage}</td>
+					<td colspan="11" class="py-8 text-center text-base-content/60">{emptyMessage}</td>
 				</tr>
 			{:else}
 				{#if partitioned.pinned.length > 0}
-					<DriveSectionHeader colspan={10} label="Pinned" icon="pin" />
+					<DriveSectionHeader colspan={11} label="Pinned" icon="pin" />
 					{#each partitioned.pinned as item (item.id)}
-						<tr
-							class="border-l-4 transition-colors hover:bg-info/50 {fileLabelBorderClass(
-								item.color
-							)}"
-						>
+						<tr class={rowClass(item)}>
 							{@render trashRow(item)}
 						</tr>
 					{/each}
 				{/if}
 				{#if partitioned.starred.length > 0}
-					<DriveSectionHeader colspan={10} label="Starred" icon="star" />
+					<DriveSectionHeader colspan={11} label="Starred" icon="star" />
 					{#each partitioned.starred as item (item.id)}
-						<tr
-							class="border-l-4 transition-colors hover:bg-info/50 {fileLabelBorderClass(
-								item.color
-							)}"
-						>
+						<tr class={rowClass(item)}>
 							{@render trashRow(item)}
 						</tr>
 					{/each}
 				{/if}
 				{#if partitioned.other.length > 0}
 					{#if partitioned.pinned.length > 0 || partitioned.starred.length > 0}
-						<DriveSectionHeader colspan={10} label="More" />
+						<DriveSectionHeader colspan={11} label="More" />
 					{/if}
 					{#each partitioned.other as item (item.id)}
-						<tr
-							class="border-l-4 transition-colors hover:bg-info/50 {fileLabelBorderClass(
-								item.color
-							)}"
-						>
+						<tr class={rowClass(item)}>
 							{@render trashRow(item)}
 						</tr>
 					{/each}
@@ -104,7 +110,20 @@
 </div>
 
 {#snippet trashRow(item: TrashDriveItem)}
-	<td>
+	<td class="text-center">
+		<DriveSelectionCheckbox
+			checked={selection.isSelected(item.id)}
+			ariaLabel="Select {item.name}"
+			onchange={() => selection.toggle(item.id)}
+		/>
+	</td>
+	<td
+		onclick={(e) => {
+			const t = e.target;
+			if (t instanceof HTMLElement && t.closest('button, a, input, label')) return;
+			selection.handleRowClick(item.id, visibleIds, e);
+		}}
+	>
 		<DriveNameCell {item} />
 	</td>
 	<td class="text-base-content/80 tabular-nums">{formatBytes(item.sizeBytes)}</td>

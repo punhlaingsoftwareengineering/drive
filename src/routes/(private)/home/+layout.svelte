@@ -399,6 +399,8 @@
 				return [...base, { href: null, label: 'Trash', isLast: true }];
 			} else if (scope === 'dashboard') {
 				return [...base, { href: null, label: 'Dashboard', isLast: true }];
+			} else if (scope === 'settings') {
+				return [...base, { href: null, label: 'Settings', isLast: true }];
 			}
 			if (data.currentFolder) {
 				return appendFolderCrumbs(base, data.folderAncestors ?? [], data.currentFolder);
@@ -454,6 +456,7 @@
 				if (data.teamScopeView === 'recent') return resolveHref(`${teamPath}/recent`);
 				if (data.teamScopeView === 'trash') return resolveHref(`${teamPath}/trash`);
 				if (data.teamScopeView === 'dashboard') return resolveHref(`${teamPath}/dashboard`);
+				if (data.teamScopeView === 'settings') return resolveHref(`${teamPath}/settings`);
 				return resolveHref(teamPath);
 			}
 			if (data.teamView) return resolveHref(`/home/team/${data.teamView.slug}`);
@@ -489,7 +492,9 @@
 					data.teamScopeView &&
 					(data.teamScopeView === 'shared' ||
 						data.teamScopeView === 'recent' ||
-						data.teamScopeView === 'trash'))
+						data.teamScopeView === 'trash' ||
+						data.teamScopeView === 'dashboard' ||
+						data.teamScopeView === 'settings'))
 		)
 	);
 	const newActionsTooltip = $derived(
@@ -505,7 +510,10 @@
 							? 'New folders and uploads are only available in this team’s Home, not in Shared.'
 							: data.teamView && data.teamScopeView === 'recent'
 								? 'New folders and uploads are only available in this team’s Home, not on Recent.'
-								: ''
+								: data.teamView &&
+									  (data.teamScopeView === 'dashboard' || data.teamScopeView === 'settings')
+									? 'New folders and uploads are only available in this team’s Home.'
+									: ''
 	);
 </script>
 
@@ -585,7 +593,7 @@
 		<div class="d-drawer min-h-0 flex-1 lg:d-drawer-open">
 			<input id="drive-sidebar-drawer" type="checkbox" class="d-drawer-toggle" />
 			<div
-				class="d-drawer-content flex min-h-0 flex-1 flex-col overflow-y-auto px-3 py-4 sm:px-5 sm:py-5"
+				class="d-drawer-content flex min-h-0 flex-1 flex-col overflow-hidden px-3 py-4 sm:px-5 sm:py-5"
 			>
 				<div class="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
 					<div
@@ -645,7 +653,7 @@
 					{#if data.teamView && data.teamScopeView}
 						<TeamScopeNav team={data.teamView} activeView={data.teamScopeView} />
 					{/if}
-					<div class="flex min-h-0 flex-1 flex-col pt-4">
+					<div class="my-drive-content-scroll flex flex-col pt-4">
 						{@render children?.()}
 					</div>
 				</div>
@@ -720,7 +728,7 @@
 							<h3 class="d-font-title text-lg font-bold">Upload files</h3>
 							<p class="py-2 text-sm text-base-content/70">
 								Using storage: <strong>{storageProviderLabel(activeStorageProvider)}</strong>
-								— local files go to <code class="text-xs">~/Documents/znl-drive/</code>; Tigris uses
+								— local files go to <code class="text-xs">~/Documents/drive/</code>; Tigris uses
 								your bucket. All file types supported, including custom extensions.
 							</p>
 							<input

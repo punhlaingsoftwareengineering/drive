@@ -57,6 +57,11 @@ Authenticated user is not permitted for this operation.
 | ------- | ----------------- |
 | Team API | `Forbidden` — not a team member |
 | Team file access | `Forbidden` |
+| Team API key scope | `Team API key is not allowed for this team` |
+| Team API key personal drive | `Team API key cannot access personal drive` |
+| Team API key permission | `Team API key missing permission: drive.write` |
+| Team API key create team | `Team API key cannot create teams` |
+| Team API key leave | `Team API key cannot leave a team` |
 | Developer key create/delete | `Enable developer mode first` |
 | Download | `Forbidden` — no share/team/owner access |
 
@@ -119,6 +124,10 @@ Common cases by area:
 | ------- | ----- |
 | `Expected { enabled: boolean }` | Bad dev mode POST body |
 | `Expected { name: string }` | Empty key name |
+| `Developer API teams limit reached (max N)` | `DEVELOPER_API_MAX_TEAMS` exceeded (API key auth) |
+| `Developer API folders limit reached (max N)` | `DEVELOPER_API_MAX_FOLDERS` exceeded |
+| `Developer API files limit reached (max N)` | `DEVELOPER_API_MAX_FILES` exceeded |
+| `Developer API API keys limit reached (max N)` | `DEVELOPER_API_MAX_API_KEYS` exceeded |
 
 ---
 

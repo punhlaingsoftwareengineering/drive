@@ -89,6 +89,41 @@ Status codes: [Errors](./errors).
 - **Chunked upload** (`POST /api/drive/upload/chunk`): 8 MiB per chunk; required for larger files.
 - **`MAX_UPLOAD_BYTES`** env: app-level cap; `0` or unset means no app cap (disk/env limits still apply).
 
+## Developer API quotas
+
+When a request is authenticated with a **developer API key** (`znldv_…`), optional per-user caps apply. Browser cookie sessions are **not** limited by these vars.
+
+| Env | Default | Applies to |
+| --- | ------- | ---------- |
+| `DEVELOPER_API_MAX_TEAMS` | `0` (unlimited) | `POST /api/teams` — teams created by the user |
+| `DEVELOPER_API_MAX_FOLDERS` | `0` | `POST /api/drive/folders` — non-trashed folders owned by the user |
+| `DEVELOPER_API_MAX_FILES` | `0` | `POST /api/drive/upload` and chunked finalize — non-trashed files owned by the user |
+| `DEVELOPER_API_MAX_API_KEYS` | `0` | `POST /api/developer/api-keys` — active (non-revoked) keys |
+
+Exceeded limits return **403** with a plain-text message, e.g. `Developer API files limit reached (max 5000)`.
+
+Configured limits are exposed on `GET /api/developer/mode` as `{ enabled, limits: { teams, folders, files, apiKeys } }` (`null` = unlimited).
+
+Per-key limits are set in **Profile → Developer** when generating a key, or updated with `PATCH /api/developer/api-keys/[id]`. Counts apply to resources **created with that key** (teams, folders, files tagged at insert time). Env caps still apply to your whole account when using any API key.
+
+## Team API key permissions
+
+Team keys (`znltv_…`) use per-key permissions instead of full account access:
+
+| Permission | Allows |
+| ---------- | ------ |
+| `drive.read` | List/browse, download, stats, recent |
+| `drive.write` | Upload, folders, PATCH file, reorder, move |
+| `drive.delete` | Trash / permanent delete in team drive |
+| `drive.share` | Share + public-link endpoints |
+| `invites.manage` | POST/DELETE team invites |
+| `members.read` | GET `/api/teams/[teamId]/members` |
+| `members.manage` | PATCH/DELETE members |
+| `team.settings` | PATCH team rename |
+| `team.delete` | DELETE team (owner-only when creating the key) |
+
+Team keys default `teamId` to their bound team on drive APIs. Wrong `teamId` or personal-drive access returns **403**.
+
 ## Maintenance for contributors
 
 When adding a new `src/routes/api/**/+server.ts` handler:

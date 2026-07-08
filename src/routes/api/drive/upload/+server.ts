@@ -1,5 +1,7 @@
 import { throwMappedUploadError } from '$lib/server/drive-upload-errors';
 import { assertWithinUploadLimit } from '$lib/server/drive-upload-limits';
+import { assertDeveloperApiCanCreate } from '$lib/server/developer-api-limits';
+import { assertTeamKeyHas } from '$lib/server/team-api-key-scope';
 import { persistSealedUpload } from '$lib/server/drive-upload-persist';
 import { parseSimpleUploadQuery, readUploadBody } from '$lib/server/drive-upload-query';
 import { requireApiSession } from '$lib/server/require-api-session';
@@ -12,12 +14,14 @@ import type { RequestHandler } from './$types';
  */
 export const POST: RequestHandler = async ({ request, url }) => {
 	const session = await requireApiSession(request);
+	assertTeamKeyHas(session, 'drive.write');
 	const userId = session.user.id;
 
-	const meta = await parseSimpleUploadQuery(url, userId);
+	const meta = await parseSimpleUploadQuery(url, userId, session);
 	const plain = await readUploadBody(request);
 
 	assertWithinUploadLimit(plain.length);
+	await assertDeveloperApiCanCreate(session, 'files');
 
 	try {
 		const row = await persistSealedUpload(
@@ -27,7 +31,10 @@ export const POST: RequestHandler = async ({ request, url }) => {
 			plain,
 			meta.fileName,
 			meta.mimeType,
-			meta.teamId ? { teamId: meta.teamId } : undefined
+			{
+				teamId: meta.teamId ?? null,
+				createdByApiKeyId: session.apiKeyId ?? null
+			}
 		);
 		return json({ ok: true, created: [row] });
 	} catch (e) {

@@ -1,17 +1,17 @@
 # ---------- Build stage ----------
-FROM denoland/deno:debian AS builder
+FROM node:24-alpine AS builder
+
+RUN corepack enable && corepack prepare pnpm@latest --activate
 
 WORKDIR /app
 
-# Vite/SvelteKit build runs via Node (Deno's npm runner breaks tsconfig extends resolution).
-RUN apt-get update && apt-get install -y --no-install-recommends nodejs && rm -rf /var/lib/apt/lists/*
-
-COPY package.json deno.json deno.lock ./
-RUN deno install
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+RUN pnpm install --frozen-lockfile
 
 COPY . .
 ENV BUILDING=true
-RUN deno task build
+RUN pnpm build
+RUN pnpm prune --prod
 
 # ---------- Runtime stage ----------
 FROM node:24-alpine

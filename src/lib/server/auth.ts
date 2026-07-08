@@ -4,18 +4,19 @@ import { sveltekitCookies } from 'better-auth/svelte-kit';
 import { building } from '$app/environment';
 import { env } from '$env/dynamic/private';
 import { getRequestEvent } from '$app/server';
-import { db } from '$lib/server/db';
+import { authDb } from '$lib/server/db/auth-db';
 import {
 	AuthAccountSchema,
 	AuthSessionSchema,
 	AuthUserSchema,
 	AuthVerificationSchema
 } from '$lib/server/db/schema/auth-schema/auth.schema';
+import { getAuthSessionOptions } from '$lib/server/auth-session-config';
 import { getFromAddress, getSmtpTransport } from '$lib/server/mailer';
-import { getConfiguredOrigin, useSecureCookies } from '$lib/server/public-origin';
+import { getConfiguredOrigin } from '$lib/server/public-origin';
 
 /**
- * CI/Docker image builds (e.g. `flyctl deploy --remote-only`) run `deno task build` without Fly secrets.
+ * CI/Docker image builds run `pnpm build` without production secrets.
  * Better Auth throws if it falls back to its default secret/base URL. We provide safe placeholders
  * during the build step so compilation succeeds, but we still fail fast at runtime in production.
  */
@@ -45,12 +46,12 @@ if (!isBuildStep && process.env.NODE_ENV === 'production') {
 	}
 }
 
+const { session, advanced: sessionAdvanced } = getAuthSessionOptions();
+
 export const auth = betterAuth({
 	baseURL: baseURL!,
 	secret: secret!,
-	advanced: {
-		useSecureCookies: useSecureCookies()
-	},
+	advanced: sessionAdvanced,
 	user: {
 		additionalFields: {
 			developerModeEnabled: {
@@ -61,11 +62,8 @@ export const auth = betterAuth({
 			}
 		}
 	},
-	/** Cookie / session lifetime (seconds). Default in Better Auth is 7 days. */
-	session: {
-		expiresIn: 60 * 60 * 24
-	},
-	database: drizzleAdapter(db, {
+	session,
+	database: drizzleAdapter(authDb, {
 		provider: 'pg',
 		schema: {
 			user: AuthUserSchema,

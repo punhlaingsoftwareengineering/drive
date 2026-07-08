@@ -1,3 +1,4 @@
+import { assertTeamKeyHas } from '$lib/server/team-api-key-scope';
 import { requireApiSession } from '$lib/server/require-api-session';
 import { resolveTeamApiContext } from '$lib/server/team-api-scope';
 import { db } from '$lib/server/db';
@@ -16,8 +17,9 @@ function num(v: string | bigint | number | null | undefined): number {
 
 export const GET: RequestHandler = async ({ request, url }) => {
 	const session = await requireApiSession(request);
+	assertTeamKeyHas(session, 'drive.read');
 	const userId = session.user.id;
-	const teamCtx = await resolveTeamApiContext(userId, url);
+	const teamCtx = await resolveTeamApiContext(userId, url, session);
 
 	const raw = url.searchParams.get('storageProvider') ?? 'local';
 	if (!STORAGE_PROVIDERS.includes(raw as StorageProviderId)) {

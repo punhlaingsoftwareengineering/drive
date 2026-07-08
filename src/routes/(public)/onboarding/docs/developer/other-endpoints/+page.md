@@ -4,7 +4,7 @@ Auth, developer admin, public token routes, and cron — endpoints outside the m
 
 ---
 
-## Auth {#auth}
+<h2 id="auth">Auth</h2>
 
 Session establishment for browsers and interactive clients. **Not** used with developer API keys.
 
@@ -32,15 +32,25 @@ For automation, use [developer API keys](./authentication) instead of scripting 
 
 ---
 
-## Developer admin {#developer-admin}
+<h2 id="developer-admin">Developer admin</h2>
 
 Cookie session **required**. API keys return **401**.
 
 ### `GET /api/developer/mode`
 
 ```json
-{ "enabled": true }
+{
+  "enabled": true,
+  "limits": {
+    "teams": null,
+    "folders": 500,
+    "files": 5000,
+    "apiKeys": 5
+  }
+}
 ```
+
+`limits` values are `null` when unlimited (`DEVELOPER_API_MAX_*` unset or `0`).
 
 ### `POST /api/developer/mode`
 
@@ -75,9 +85,24 @@ When on:
 
 ### `POST /api/developer/api-keys`
 
-Requires dev mode. **Body:** `{ "name": string }`
+Requires dev mode. **Body:**
 
-**Response:** `{ "ok": true, "id", "name", "key", "masked", "warning" }` — see [Getting started](./getting-started).
+```json
+{
+  "name": "CI backup",
+  "limits": { "teams": 2, "folders": 50, "files": 1000 }
+}
+```
+
+`limits` is optional; omit a field or set `null` for no per-key cap on that resource.
+
+**Response:** `{ "ok": true, "id", "name", "key", "masked", "limits", "warning" }` — see [Getting started](./getting-started).
+
+### `PATCH /api/developer/api-keys/[id]`
+
+Update per-key quotas. **Body:** `{ "limits": { "teams": number | null, "folders": number | null, "files": number | null } }`
+
+**Response:** `{ "ok": true, "limits": { … } }`
 
 ### `DELETE /api/developer/api-keys/[id]`
 
@@ -85,7 +110,7 @@ Revokes the key. **Response:** `{ "ok": true }` (or 404 if not found).
 
 ---
 
-## Public {#public}
+<h2 id="public">Public</h2>
 
 No authentication. Access is gated by the **link token** in the URL.
 
@@ -122,11 +147,11 @@ Stream file bytes or folder ZIP (same as authenticated download, but token-based
 
 **Response:** binary with appropriate `Content-Type` and `Content-Disposition`.
 
-Create links via [Drive API public-link](./drive-api#public-link). See also the [user public links guide](../user/public-links).
+Create links via [Drive API](./drive-api). See also the [user public links guide](../user/public-links).
 
 ---
 
-## Cron {#cron}
+<h2 id="cron">Cron</h2>
 
 ### `POST /api/cron/purge-trash`
 

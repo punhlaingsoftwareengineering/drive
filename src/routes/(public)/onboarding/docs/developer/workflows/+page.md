@@ -11,7 +11,7 @@ export API_KEY='znldv_…'
 
 ---
 
-## Personal drive automation {#personal-drive}
+<h2 id="personal-drive">Personal drive automation</h2>
 
 List root → create folder → upload → update metadata → download.
 
@@ -47,7 +47,7 @@ curl -o out.zip "$ORIGIN/api/drive/files/$FILE_ID/download" \
 
 ---
 
-## Simple upload {#simple-upload}
+<h2 id="simple-upload">Simple upload</h2>
 
 ```mermaid
 sequenceDiagram
@@ -60,11 +60,11 @@ sequenceDiagram
   API-->>Client: ok created id
 ```
 
-Use `POST /api/drive/upload` when file size ≤ **8 MiB**. See [Drive API](./drive-api#post-apidriveupload).
+Use `POST /api/drive/upload` when file size ≤ **8 MiB**. See [Drive API](./drive-api).
 
 ---
 
-## Chunked upload {#chunked-upload}
+<h2 id="chunked-upload">Chunked upload</h2>
 
 For files larger than 8 MiB, send **8 MiB** chunks to `POST /api/drive/upload/chunk`.
 
@@ -93,7 +93,7 @@ sequenceDiagram
 
 ---
 
-## Team drive {#team-drive}
+<h2 id="team-drive">Team drive</h2>
 
 ```bash
 # Create team
@@ -123,7 +123,7 @@ Invite members with `POST /api/teams/$TEAM_ID/invites` — see [Teams API](./tea
 
 ---
 
-## Sharing with another user {#sharing}
+<h2 id="sharing">Sharing with another user</h2>
 
 Owner shares by email; recipient lists inbound shared content.
 
@@ -143,7 +143,7 @@ Team **outbound** shares: `GET /api/drive/shared?teamId=<TEAM_UUID>`.
 
 ---
 
-## Public links {#public-links}
+<h2 id="public-links">Public links</h2>
 
 ```bash
 # Create public link (owner)
@@ -164,7 +164,7 @@ curl -X DELETE "$ORIGIN/api/drive/files/$FILE_ID/public-link" \
 
 ---
 
-## Trash lifecycle {#trash}
+<h2 id="trash">Trash lifecycle</h2>
 
 Retention period is returned by `GET /api/drive/trash` as `trashRetentionDays`.
 

@@ -13,7 +13,9 @@
 	import DriveSectionHeader from '$lib/components/drive/drive-section-header.svelte';
 	import DriveNameCell from '$lib/components/drive/drive-name-cell.svelte';
 	import DrivePinStarCells from '$lib/components/drive/drive-pin-star-cells.svelte';
+	import DriveSelectionCheckbox from '$lib/components/drive/drive-selection-checkbox.svelte';
 	import type { createDriveFileActions } from '$lib/components/drive/use-drive-file-actions.svelte';
+	import type { DriveSelection } from '$lib/components/drive/use-drive-selection.svelte';
 
 	type Actions = ReturnType<typeof createDriveFileActions>;
 
@@ -22,6 +24,7 @@
 		loading = false,
 		storageLabel,
 		actions,
+		selection,
 		buttonIdPrefix,
 		emptyMessage,
 		onEnterFolder,
@@ -32,6 +35,7 @@
 		loading?: boolean;
 		storageLabel: string;
 		actions: Actions;
+		selection: DriveSelection;
 		buttonIdPrefix: string;
 		emptyMessage: string;
 		onEnterFolder: (item: RecentDriveItem) => void;
@@ -40,12 +44,26 @@
 	} = $props();
 
 	const partitioned = $derived(partitionDriveRows(rows));
+	const visibleIds = $derived(rows.map((r) => r.id));
+	const headerState = $derived(selection.headerCheckedState(visibleIds));
+
+	function rowClass(item: RecentDriveItem): string {
+		return `border-l-4 transition-colors hover:bg-info/50 ${fileLabelBorderClass(item.color)} ${selection.isSelected(item.id) ? 'bg-primary/10' : ''}`;
+	}
 </script>
 
 <div class="min-h-0 flex-1 overflow-auto" onscroll={onScroll}>
 	<table class="d-table w-full {DRIVE_TABLE_MIN_WIDTH} d-table-zebra">
 		<thead>
 			<tr class="border-b border-base-300">
+				<th class="w-10 text-center">
+					<DriveSelectionCheckbox
+						checked={headerState === 'all'}
+						indeterminate={headerState === 'some'}
+						ariaLabel="Select all"
+						onchange={() => selection.toggleSelectAll(visibleIds)}
+					/>
+				</th>
 				<th class="min-w-[12rem]">Name</th>
 				<th class="min-w-[7rem]">Where</th>
 				<th class="w-28">Size</th>
@@ -60,50 +78,38 @@
 		</thead>
 		<tbody>
 			<tr class="bg-base-200/60 hover:bg-base-200/60">
-				<td colspan="10" class="py-2 text-xs font-semibold tracking-wide text-base-content/80">
+				<td colspan="11" class="py-2 text-xs font-semibold tracking-wide text-base-content/80">
 					Recent — {storageLabel}
 				</td>
 			</tr>
 
 			{#if rows.length === 0 && !loading}
 				<tr>
-					<td colspan="10" class="py-8 text-center text-base-content/60">{emptyMessage}</td>
+					<td colspan="11" class="py-8 text-center text-base-content/60">{emptyMessage}</td>
 				</tr>
 			{:else}
 				{#if partitioned.pinned.length > 0}
-					<DriveSectionHeader colspan={10} label="Pinned" icon="pin" />
+					<DriveSectionHeader colspan={11} label="Pinned" icon="pin" />
 					{#each partitioned.pinned as item (item.id)}
-						<tr
-							class="border-l-4 transition-colors hover:bg-info/50 {fileLabelBorderClass(
-								item.color
-							)}"
-						>
+						<tr class={rowClass(item)}>
 							{@render recentRow(item)}
 						</tr>
 					{/each}
 				{/if}
 				{#if partitioned.starred.length > 0}
-					<DriveSectionHeader colspan={10} label="Starred" icon="star" />
+					<DriveSectionHeader colspan={11} label="Starred" icon="star" />
 					{#each partitioned.starred as item (item.id)}
-						<tr
-							class="border-l-4 transition-colors hover:bg-info/50 {fileLabelBorderClass(
-								item.color
-							)}"
-						>
+						<tr class={rowClass(item)}>
 							{@render recentRow(item)}
 						</tr>
 					{/each}
 				{/if}
 				{#if partitioned.other.length > 0}
 					{#if partitioned.pinned.length > 0 || partitioned.starred.length > 0}
-						<DriveSectionHeader colspan={10} label="More" />
+						<DriveSectionHeader colspan={11} label="More" />
 					{/if}
 					{#each partitioned.other as item (item.id)}
-						<tr
-							class="border-l-4 transition-colors hover:bg-info/50 {fileLabelBorderClass(
-								item.color
-							)}"
-						>
+						<tr class={rowClass(item)}>
 							{@render recentRow(item)}
 						</tr>
 					{/each}
@@ -114,7 +120,20 @@
 </div>
 
 {#snippet recentRow(item: RecentDriveItem)}
-	<td>
+	<td class="text-center">
+		<DriveSelectionCheckbox
+			checked={selection.isSelected(item.id)}
+			ariaLabel="Select {item.name}"
+			onchange={() => selection.toggle(item.id)}
+		/>
+	</td>
+	<td
+		onclick={(e) => {
+			const t = e.target;
+			if (t instanceof HTMLElement && t.closest('button, a, input, label')) return;
+			selection.handleRowClick(item.id, visibleIds, e);
+		}}
+	>
 		<DriveNameCell {item} onEnterFolder={(i) => onEnterFolder(i as RecentDriveItem)} />
 	</td>
 	<td class="max-w-[9rem] truncate text-sm" title={recentWhereLabel(item)}>

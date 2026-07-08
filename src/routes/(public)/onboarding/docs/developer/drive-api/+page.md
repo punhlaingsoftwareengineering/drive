@@ -147,6 +147,70 @@ Set display order of siblings in one folder.
 
 ---
 
+## `POST /api/drive/files/batch`
+
+Apply the same metadata patch to multiple items in one request.
+
+**Body** `application/json`
+
+```json
+{
+  "ids": ["uuid-1", "uuid-2"],
+  "patch": {
+    "isPinned": true,
+    "isStarred": false,
+    "color": "blue",
+    "trashed": true
+  }
+}
+```
+
+At least one field in `patch` is required. Rename is not supported in batch (use single-item `PATCH`). Max 200 ids per request.
+
+**Response** `200`
+
+```json
+{
+  "ok": true,
+  "failed": [],
+  "updated": 2
+}
+```
+
+`failed` lists per-id errors when some items could not be updated.
+
+---
+
+## `POST /api/drive/files/move`
+
+Move one or more files or folders to a new parent folder within the same personal or team drive.
+
+**Body** `application/json`
+
+```json
+{
+  "ids": ["uuid-1", "uuid-2"],
+  "parentId": "folder-uuid-or-null",
+  "teamId": "optional-team-uuid",
+  "storageProvider": "local"
+}
+```
+
+`parentId: null` moves to the drive root (for teams, the team's root folder). Folders cannot be moved into themselves or descendants. Nested selections are collapsed to top-level items automatically.
+
+**Response** `200`
+
+```json
+{
+  "ok": true,
+  "failed": []
+}
+```
+
+**Errors:** `400` invalid parent or cycle; `403` forbidden; per-id failures in `failed` array.
+
+---
+
 ## `GET /api/drive/files/[id]/download`
 
 Download a file or folder ZIP.
@@ -171,7 +235,7 @@ curl -o report.pdf '{ORIGIN}/api/drive/files/<ID>/download' \
 
 ---
 
-## Public link {#public-link}
+<h2 id="public-link">Public link</h2>
 
 ### `GET /api/drive/files/[id]/public-link`
 
@@ -468,7 +532,7 @@ Multipart upload for files **larger than 8 MiB**. Chunk size: **8 MiB** (8 × 10
 }
 ```
 
-See [Workflows](./workflows#chunked-upload) for the full sequence.
+See [Workflows](./workflows) for the full sequence.
 
 ---
 

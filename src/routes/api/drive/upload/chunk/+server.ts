@@ -6,6 +6,8 @@ import {
 } from '$lib/server/drive-upload-chunk-store';
 import { throwMappedUploadError } from '$lib/server/drive-upload-errors';
 import { assertWithinUploadLimit } from '$lib/server/drive-upload-limits';
+import { assertDeveloperApiCanCreate } from '$lib/server/developer-api-limits';
+import { assertTeamKeyHas } from '$lib/server/team-api-key-scope';
 import { persistSealedUploadFromPath } from '$lib/server/drive-upload-persist';
 import { parseChunkUploadQuery, readUploadBody } from '$lib/server/drive-upload-query';
 import { requireApiSession } from '$lib/server/require-api-session';
@@ -14,10 +16,11 @@ import type { RequestHandler } from './$types';
 
 export const POST: RequestHandler = async ({ request, url }) => {
 	const session = await requireApiSession(request);
+	assertTeamKeyHas(session, 'drive.write');
 	const userId = session.user.id;
 
 	const chunkIndex = Number(url.searchParams.get('chunkIndex'));
-	const { chunkCount, uploadId, init } = await parseChunkUploadQuery(url, userId, chunkIndex);
+	const { chunkCount, uploadId, init } = await parseChunkUploadQuery(url, userId, chunkIndex, session);
 	const buf = await readUploadBody(request);
 
 	try {
@@ -36,6 +39,7 @@ export const POST: RequestHandler = async ({ request, url }) => {
 
 		const size = await assembledSize(userId, sid);
 		assertWithinUploadLimit(size);
+		await assertDeveloperApiCanCreate(session, 'files');
 
 		const teamId = meta.teamId ?? null;
 		const created = await persistSealedUploadFromPath(
@@ -45,7 +49,10 @@ export const POST: RequestHandler = async ({ request, url }) => {
 			assembledPath(userId, sid),
 			meta.fileName,
 			meta.mimeType,
-			teamId ? { teamId } : undefined
+			{
+				teamId,
+				createdByApiKeyId: session.apiKeyId ?? null
+			}
 		);
 
 		await removeSession(userId, sid);

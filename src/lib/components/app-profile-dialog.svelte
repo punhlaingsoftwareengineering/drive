@@ -19,6 +19,12 @@
 		name?: string | null;
 	} | null;
 
+	type ApiKeyLimits = {
+		teams: number | null;
+		folders: number | null;
+		files: number | null;
+	};
+
 	type ApiKeyRow = {
 		id: string;
 		name: string;
@@ -26,7 +32,12 @@
 		createdAt: string | null;
 		lastUsedAt: string | null;
 		isRevoked: boolean;
+		limits?: ApiKeyLimits;
 	};
+
+	type LimitFields = { teams: string; folders: string; files: string };
+
+	const emptyLimitFields = (): LimitFields => ({ teams: '', folders: '', files: '' });
 
 	let {
 		user = null,
@@ -53,7 +64,11 @@
 
 	let devMode = $state(false);
 	let apiKeys = $state<ApiKeyRow[]>([]);
+	let serverLimits = $state<({ apiKeys: number | null } & ApiKeyLimits) | null>(null);
 	let newKeyName = $state('');
+	let newKeyLimits = $state<LimitFields>(emptyLimitFields());
+	let editingLimitsId = $state<string | null>(null);
+	let editingLimits = $state<LimitFields>(emptyLimitFields());
 	let lastCreatedKey = $state<string | null>(null);
 	let devBusy = $state(false);
 
@@ -76,11 +91,84 @@
 		return ids[0]!;
 	});
 
+	function limitHint(kind: keyof ApiKeyLimits): string {
+		const server = serverLimits?.[kind];
+		return server === null || server === undefined
+			? 'Blank = unlimited for this key'
+			: `Blank = unlimited (server max ${server})`;
+	}
+
+	function limitsSummary(limits: ApiKeyLimits | undefined): string {
+		if (!limits) return 'No per-key limits';
+		const parts = [
+			limits.teams === null ? 'teams: unlimited' : `teams: ${limits.teams}`,
+			limits.folders === null ? 'folders: unlimited' : `folders: ${limits.folders}`,
+			limits.files === null ? 'files: unlimited' : `files: ${limits.files}`
+		];
+		return parts.join(' · ');
+	}
+
+	function limitsFromRow(limits: ApiKeyLimits | undefined): LimitFields {
+		return {
+			teams: limits?.teams === null || limits?.teams === undefined ? '' : String(limits.teams),
+			folders:
+				limits?.folders === null || limits?.folders === undefined ? '' : String(limits.folders),
+			files: limits?.files === null || limits?.files === undefined ? '' : String(limits.files)
+		};
+	}
+
+	function parseLimitField(raw: string, label: string): number | null {
+		const t = raw.trim();
+		if (!t) return null;
+		const n = Number(t);
+		if (!Number.isInteger(n) || n < 0) {
+			throw new Error(`${label} must be a whole number ≥ 0`);
+		}
+		return n;
+	}
+
+	function buildCreateLimitsPayload(fields: LimitFields): ApiKeyLimits | undefined {
+		let teams: number | null | undefined;
+		let folders: number | null | undefined;
+		let files: number | null | undefined;
+		try {
+			if (fields.teams.trim()) teams = parseLimitField(fields.teams, 'Teams');
+			if (fields.folders.trim()) folders = parseLimitField(fields.folders, 'Folders');
+			if (fields.files.trim()) files = parseLimitField(fields.files, 'Files');
+		} catch (e) {
+			throw e;
+		}
+		if (teams === undefined && folders === undefined && files === undefined) return undefined;
+		return {
+			teams: teams ?? null,
+			folders: folders ?? null,
+			files: files ?? null
+		};
+	}
+
+	function buildPatchLimitsPayload(fields: LimitFields): ApiKeyLimits {
+		return {
+			teams: parseLimitField(fields.teams, 'Teams'),
+			folders: parseLimitField(fields.folders, 'Folders'),
+			files: parseLimitField(fields.files, 'Files')
+		};
+	}
+
 	async function refreshDeveloperPanel() {
-		const r = await fetchWithSession(resolveHref('/api/developer/api-keys'));
-		if (!r.ok) return;
-		const j = (await r.json()) as { keys?: ApiKeyRow[] };
-		apiKeys = j.keys ?? [];
+		const [keysR, modeR] = await Promise.all([
+			fetchWithSession(resolveHref('/api/developer/api-keys')),
+			fetchWithSession(resolveHref('/api/developer/mode'))
+		]);
+		if (keysR.ok) {
+			const j = (await keysR.json()) as { keys?: ApiKeyRow[] };
+			apiKeys = j.keys ?? [];
+		}
+		if (modeR.ok) {
+			const m = (await modeR.json()) as {
+				limits?: { teams: number | null; folders: number | null; files: number | null; apiKeys: number | null };
+			};
+			serverLimits = m.limits ?? null;
+		}
 	}
 
 	$effect(() => {
@@ -98,6 +186,9 @@
 			activeSection = 'about';
 			lastCreatedKey = null;
 			newKeyName = '';
+			newKeyLimits = emptyLimitFields();
+			editingLimitsId = null;
+			editingLimits = emptyLimitFields();
 		}
 	}
 
@@ -148,20 +239,64 @@
 		}
 		devBusy = true;
 		try {
+			let limits: ApiKeyLimits | undefined;
+			try {
+				limits = buildCreateLimitsPayload(newKeyLimits);
+			} catch (e) {
+				throw new Error(e instanceof Error ? e.message : 'Invalid limits');
+			}
 			const r = await fetchWithSession(resolveHref('/api/developer/api-keys'), {
 				method: 'POST',
 				headers: { 'content-type': 'application/json' },
-				body: JSON.stringify({ name })
+				body: JSON.stringify({
+					name,
+					...(limits ? { limits: { teams: limits.teams, folders: limits.folders, files: limits.files } } : {})
+				})
 			});
 			if (!r.ok) throw new Error((await r.text()) || r.statusText);
 			const j = (await r.json()) as { key?: string };
 			lastCreatedKey = j.key ?? null;
 			newKeyName = '';
+			newKeyLimits = emptyLimitFields();
 			await refreshDeveloperPanel();
 			toastService.addToast('API key created — copy it now', StatusColorEnum.SUCCESS);
 		} catch (e) {
 			toastService.addToast(
 				e instanceof Error ? e.message : 'Could not create key',
+				StatusColorEnum.ERROR
+			);
+		} finally {
+			devBusy = false;
+		}
+	}
+
+	function startEditLimits(key: ApiKeyRow) {
+		editingLimitsId = key.id;
+		editingLimits = limitsFromRow(key.limits);
+	}
+
+	function cancelEditLimits() {
+		editingLimitsId = null;
+		editingLimits = emptyLimitFields();
+	}
+
+	async function saveKeyLimits(id: string) {
+		devBusy = true;
+		try {
+			const limits = buildPatchLimitsPayload(editingLimits);
+			const r = await fetchWithSession(resolveHref(`/api/developer/api-keys/${id}`), {
+				method: 'PATCH',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify({ limits })
+			});
+			if (!r.ok) throw new Error((await r.text()) || r.statusText);
+			editingLimitsId = null;
+			editingLimits = emptyLimitFields();
+			await refreshDeveloperPanel();
+			toastService.addToast('Key limits updated', StatusColorEnum.SUCCESS);
+		} catch (e) {
+			toastService.addToast(
+				e instanceof Error ? e.message : 'Could not update limits',
 				StatusColorEnum.ERROR
 			);
 		} finally {
@@ -360,6 +495,57 @@
 								</div>
 							</div>
 
+							<fieldset class="d-fieldset max-w-md rounded-box border border-base-200 p-4">
+								<legend class="d-fieldset-legend px-1 text-sm font-medium">
+									Per-key limits (optional)
+								</legend>
+								<p class="mb-3 text-xs text-base-content/60">
+									Cap what this key can create via the API. Server-wide env limits still apply to your
+									account.
+								</p>
+								<div class="grid gap-3 sm:grid-cols-3">
+									<label class="d-form-control">
+										<span class="d-label-text text-xs">Max teams</span>
+										<input
+											type="number"
+											min="0"
+											step="1"
+											class="d-input-bordered d-input d-input-sm"
+											placeholder="Unlimited"
+											bind:value={newKeyLimits.teams}
+											disabled={devBusy}
+										/>
+										<span class="d-label-text-alt text-[11px]">{limitHint('teams')}</span>
+									</label>
+									<label class="d-form-control">
+										<span class="d-label-text text-xs">Max folders</span>
+										<input
+											type="number"
+											min="0"
+											step="1"
+											class="d-input-bordered d-input d-input-sm"
+											placeholder="Unlimited"
+											bind:value={newKeyLimits.folders}
+											disabled={devBusy}
+										/>
+										<span class="d-label-text-alt text-[11px]">{limitHint('folders')}</span>
+									</label>
+									<label class="d-form-control">
+										<span class="d-label-text text-xs">Max files</span>
+										<input
+											type="number"
+											min="0"
+											step="1"
+											class="d-input-bordered d-input d-input-sm"
+											placeholder="Unlimited"
+											bind:value={newKeyLimits.files}
+											disabled={devBusy}
+										/>
+										<span class="d-label-text-alt text-[11px]">{limitHint('files')}</span>
+									</label>
+								</div>
+							</fieldset>
+
 							<div>
 								<h4 class="mb-2 font-semibold">Your API keys</h4>
 								{#if apiKeys.length === 0}
@@ -367,29 +553,104 @@
 								{:else}
 									<ul class="divide-y divide-base-200 rounded-box border border-base-200">
 										{#each apiKeys as k (k.id)}
-											<li class="flex flex-wrap items-center justify-between gap-2 px-3 py-2">
-												<div class="min-w-0">
-													<p class="font-medium">{k.name}</p>
-													<p class="font-mono text-xs text-base-content/60">{k.masked}</p>
-													<p class="text-[11px] text-base-content/50">
-														{#if k.isRevoked}
-															Revoked
-														{:else if k.lastUsedAt}
-															Last used {new Date(k.lastUsedAt).toLocaleString()}
-														{:else}
-															Never used
+											<li class="px-3 py-2">
+												<div class="flex flex-wrap items-center justify-between gap-2">
+													<div class="min-w-0">
+														<p class="font-medium">{k.name}</p>
+														<p class="font-mono text-xs text-base-content/60">{k.masked}</p>
+														<p class="text-[11px] text-base-content/50">
+															{#if k.isRevoked}
+																Revoked
+															{:else if k.lastUsedAt}
+																Last used {new Date(k.lastUsedAt).toLocaleString()}
+															{:else}
+																Never used
+															{/if}
+														</p>
+														{#if !k.isRevoked}
+															<p class="mt-1 text-[11px] text-base-content/60">
+																{limitsSummary(k.limits)}
+															</p>
 														{/if}
-													</p>
+													</div>
+													{#if !k.isRevoked}
+														<div class="flex flex-wrap gap-1">
+															<button
+																type="button"
+																class="d-btn d-btn-ghost d-btn-xs"
+																disabled={devBusy}
+																onclick={() => startEditLimits(k)}
+															>
+																{editingLimitsId === k.id ? 'Editing…' : 'Limits'}
+															</button>
+															<button
+																type="button"
+																class="d-btn text-error d-btn-ghost d-btn-xs"
+																disabled={devBusy}
+																onclick={() => void revokeApiKey(k.id)}
+															>
+																Revoke
+															</button>
+														</div>
+													{/if}
 												</div>
-												{#if !k.isRevoked}
-													<button
-														type="button"
-														class="d-btn text-error d-btn-ghost d-btn-xs"
-														disabled={devBusy}
-														onclick={() => void revokeApiKey(k.id)}
-													>
-														Revoke
-													</button>
+												{#if !k.isRevoked && editingLimitsId === k.id}
+													<div class="mt-3 grid gap-2 border-t border-base-200 pt-3 sm:grid-cols-3">
+														<label class="d-form-control">
+															<span class="d-label-text text-xs">Max teams</span>
+															<input
+																type="number"
+																min="0"
+																step="1"
+																class="d-input-bordered d-input d-input-sm"
+																placeholder="Unlimited"
+																bind:value={editingLimits.teams}
+																disabled={devBusy}
+															/>
+														</label>
+														<label class="d-form-control">
+															<span class="d-label-text text-xs">Max folders</span>
+															<input
+																type="number"
+																min="0"
+																step="1"
+																class="d-input-bordered d-input d-input-sm"
+																placeholder="Unlimited"
+																bind:value={editingLimits.folders}
+																disabled={devBusy}
+															/>
+														</label>
+														<label class="d-form-control">
+															<span class="d-label-text text-xs">Max files</span>
+															<input
+																type="number"
+																min="0"
+																step="1"
+																class="d-input-bordered d-input d-input-sm"
+																placeholder="Unlimited"
+																bind:value={editingLimits.files}
+																disabled={devBusy}
+															/>
+														</label>
+													</div>
+													<div class="mt-2 flex gap-2">
+														<button
+															type="button"
+															class="d-btn d-btn-primary d-btn-xs"
+															disabled={devBusy}
+															onclick={() => void saveKeyLimits(k.id)}
+														>
+															Save limits
+														</button>
+														<button
+															type="button"
+															class="d-btn d-btn-ghost d-btn-xs"
+															disabled={devBusy}
+															onclick={cancelEditLimits}
+														>
+															Cancel
+														</button>
+													</div>
 												{/if}
 											</li>
 										{/each}

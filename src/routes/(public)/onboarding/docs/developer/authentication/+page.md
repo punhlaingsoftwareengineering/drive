@@ -22,8 +22,16 @@ Session cookies are **not** documented for third-party embedding; use API keys f
 
 ### Format
 
+User-wide keys:
+
 ```
 znldv_<12-char-prefix>_<secret>
+```
+
+Team-scoped keys (created in **Team settings → Developer API**):
+
+```
+znltv_<12-char-prefix>_<secret>
 ```
 
 Example: `znldv_AbCdEfGhIjKl_mnopqrstuvwxyz123456`
@@ -52,7 +60,14 @@ Keys stop working if:
 - **Developer mode** is disabled on the user (keys are not auto-deleted; re-enable dev mode to restore access)
 - The secret is wrong
 
-There is **no expiration** and **no per-key scopes** — each key grants the same API access as your user account.
+There is **no expiration**. User keys grant the same API access as your account (personal + all teams). **Team keys** (`znltv_…`) are limited to one team and only the permissions chosen at creation.
+
+### Team API keys
+
+- Created by team **owner/admin** with **developer mode** enabled (Profile + Team settings).
+- Prefix `znltv_`; bound to one team; customizable permissions (`drive.read`, `drive.write`, `invites.manage`, etc.).
+- Cannot access personal drive, other teams, or create new teams.
+- Managed at `GET/POST /api/teams/[teamId]/api-keys` (cookie session only).
 
 ### Storage and verification
 

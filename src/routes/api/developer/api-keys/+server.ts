@@ -3,9 +3,23 @@ import {
 	getDeveloperModeEnabled,
 	listDeveloperApiKeysForUser
 } from '$lib/server/developer-api-key';
+import {
+	assertDeveloperApiKeyLimit,
+	developerApiKeyLimitsBodySchema,
+	normalizeDeveloperApiKeyLimits,
+	serializeDeveloperApiKeyLimits
+} from '$lib/server/developer-api-limits';
 import { requireCookieApiSession } from '$lib/server/require-api-session';
 import { error, json } from '@sveltejs/kit';
+import { z } from 'zod';
 import type { RequestHandler } from './$types';
+
+const createBodySchema = z
+	.object({
+		name: z.string().min(1).max(120),
+		limits: developerApiKeyLimitsBodySchema
+	})
+	.strict();
 
 export const GET: RequestHandler = async ({ request }) => {
 	const session = await requireCookieApiSession(request);
@@ -20,7 +34,12 @@ export const GET: RequestHandler = async ({ request }) => {
 			masked: `znldv_${k.keyPrefix}…${k.last4}`,
 			createdAt: k.createdAt?.toISOString() ?? null,
 			lastUsedAt: k.lastUsedAt?.toISOString() ?? null,
-			isRevoked: k.isRevoked
+			isRevoked: k.isRevoked,
+			limits: serializeDeveloperApiKeyLimits({
+				maxTeams: k.maxTeams,
+				maxFolders: k.maxFolders,
+				maxFiles: k.maxFiles
+			})
 		}))
 	});
 };
@@ -36,20 +55,22 @@ export const POST: RequestHandler = async ({ request }) => {
 	} catch {
 		throw error(400, 'Invalid JSON');
 	}
-	const name =
-		body && typeof body === 'object' && typeof (body as { name?: unknown }).name === 'string'
-			? (body as { name: string }).name.trim()
-			: '';
-	if (!name) throw error(400, 'Expected { name: string } (app name)');
+	const parsed = createBodySchema.safeParse(body);
+	if (!parsed.success) throw error(400, parsed.error.message);
+
+	await assertDeveloperApiKeyLimit(session.user.id);
+
+	const limits = normalizeDeveloperApiKeyLimits(parsed.data.limits);
 
 	try {
-		const created = await createDeveloperApiKey(session.user.id, name);
+		const created = await createDeveloperApiKey(session.user.id, parsed.data.name, limits);
 		return json({
 			ok: true,
 			id: created.id,
 			name: created.name,
 			key: created.plaintextKey,
 			masked: `znldv_${created.keyPrefix}…${created.last4}`,
+			limits: serializeDeveloperApiKeyLimits(created.limits),
 			warning: 'Copy this key now. You will not see it again.'
 		});
 	} catch (e) {

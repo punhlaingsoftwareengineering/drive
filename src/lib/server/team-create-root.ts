@@ -5,7 +5,8 @@ import {
 	TeamMemberSchema,
 	TeamSchema
 } from '$lib/server/db/schema/main-schema/team.schema';
-import { findUsersByEmails, isTeamMember } from '$lib/server/team-access';
+import { findUsersByEmails } from '$lib/server/auth-user-lookup';
+import { isTeamMember } from '$lib/server/team-access';
 import { uniqueTeamSlug } from '$lib/server/team-slug';
 import {
 	localPathNewFolderAtRoot,
@@ -114,6 +115,7 @@ export async function createTeamWithRoot(params: {
 	name: string;
 	storageProvider: StorageProviderId;
 	inviteEmails: string[];
+	createdByApiKeyId?: string | null;
 }): Promise<{
 	teamId: string;
 	name: string;
@@ -128,6 +130,7 @@ export async function createTeamWithRoot(params: {
 	const cleanName = safeTeamName(params.name);
 	const slug = await uniqueTeamSlug(cleanName);
 	const myEmail = params.creatorEmail?.trim().toLowerCase() ?? '';
+	const apiKeyId = params.createdByApiKeyId ?? null;
 
 	if (sp === 'local') {
 		const teamDir = localTeamUploadDir(teamId);
@@ -140,6 +143,7 @@ export async function createTeamWithRoot(params: {
 			slug,
 			createdByUserId: params.creatorId,
 			rootFolderId: null,
+			createdByApiKeyId: apiKeyId,
 			storageProvider: sp
 		});
 
@@ -159,7 +163,8 @@ export async function createTeamWithRoot(params: {
 			trashedAt: null,
 			isEncrypted: false,
 			isCompressed: false,
-			color: null
+			color: null,
+			createdByApiKeyId: apiKeyId
 		});
 	} else {
 		const objectKey = tigrisKeyNewFolderAtRootTeam(teamId, rootFolderId);
@@ -178,6 +183,7 @@ export async function createTeamWithRoot(params: {
 			slug,
 			createdByUserId: params.creatorId,
 			rootFolderId: null,
+			createdByApiKeyId: apiKeyId,
 			storageProvider: sp
 		});
 
@@ -197,7 +203,8 @@ export async function createTeamWithRoot(params: {
 			trashedAt: null,
 			isEncrypted: false,
 			isCompressed: false,
-			color: null
+			color: null,
+			createdByApiKeyId: apiKeyId
 		});
 	}
 

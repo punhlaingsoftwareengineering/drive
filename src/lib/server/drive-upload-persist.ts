@@ -79,11 +79,12 @@ export async function persistSealedUpload(
 	plain: Buffer,
 	originalFileName: string,
 	mimeType: string,
-	opts?: { teamId?: string | null }
+	opts?: { teamId?: string | null; createdByApiKeyId?: string | null }
 ): Promise<{ id: string; name: string }> {
 	assertWithinUploadLimit(plain.length);
 
 	const teamId = opts?.teamId ?? null;
+	const createdByApiKeyId = opts?.createdByApiKeyId ?? null;
 	const { name, mime, parentFolder } = await resolvePersistContext({
 		userId,
 		provider,
@@ -117,7 +118,8 @@ export async function persistSealedUpload(
 		isEncrypted: true,
 		isCompressed: sealed.isCompressed,
 		color: 'base' as const,
-		sortOrder
+		sortOrder,
+		createdByApiKeyId
 	};
 
 	if (provider === 'local') {
@@ -162,13 +164,14 @@ export async function persistSealedUploadFromPath(
 	sourcePath: string,
 	originalFileName: string,
 	mimeType: string,
-	opts?: { teamId?: string | null }
+	opts?: { teamId?: string | null; createdByApiKeyId?: string | null }
 ): Promise<{ id: string; name: string }> {
 	const fileStat = await stat(sourcePath);
 	const originalSize = typeof fileStat.size === 'bigint' ? Number(fileStat.size) : fileStat.size;
 	assertWithinUploadLimit(originalSize);
 
 	const teamId = opts?.teamId ?? null;
+	const createdByApiKeyId = opts?.createdByApiKeyId ?? null;
 	const { name, mime, parentFolder } = await resolvePersistContext({
 		userId,
 		provider,
@@ -215,7 +218,8 @@ export async function persistSealedUploadFromPath(
 		isEncrypted: true,
 		isCompressed: false,
 		color: 'base' as const,
-		sortOrder
+		sortOrder,
+		createdByApiKeyId
 	};
 
 	if (provider === 'local') {

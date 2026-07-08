@@ -18,6 +18,7 @@ Thumbs.db
 .env.*
 !.env.example
 !.env.test
+scripts/docker-ghcr.env
 
 # Vite
 vite.config.js.timestamp-*

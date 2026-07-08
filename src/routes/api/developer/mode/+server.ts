@@ -1,4 +1,5 @@
 import { getDeveloperModeEnabled, setDeveloperModeEnabled } from '$lib/server/developer-api-key';
+import { developerApiLimitsConfig } from '$lib/server/developer-api-limits';
 import { requireCookieApiSession } from '$lib/server/require-api-session';
 import { error, json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
@@ -6,7 +7,7 @@ import type { RequestHandler } from './$types';
 export const GET: RequestHandler = async ({ request }) => {
 	const session = await requireCookieApiSession(request);
 	const enabled = await getDeveloperModeEnabled(session.user.id);
-	return json({ enabled });
+	return json({ enabled, limits: developerApiLimitsConfig() });
 };
 
 export const POST: RequestHandler = async ({ request }) => {

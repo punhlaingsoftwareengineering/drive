@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { resolve } from '$app/paths';
 	import { fetchWithSession } from '$lib/client/fetch-session';
 	import { resolveHref } from '$lib/url/resolve-href';
 	import { downloadDriveFileAsBlob } from '$lib/client/drive-file';
@@ -10,11 +9,15 @@
 		type RecentSource
 	} from '$lib/components/drive/drive-item';
 	import { createDriveFileActions } from '$lib/components/drive/use-drive-file-actions.svelte';
+	import { createDriveSelection } from '$lib/components/drive/use-drive-selection.svelte';
+	import { createDriveBulkActions } from '$lib/components/drive/use-drive-bulk-actions.svelte';
 	import { useDriveListLoader } from '$lib/components/drive/use-drive-list-loader.svelte';
 	import DriveListStatus from '$lib/components/drive/drive-list-status.svelte';
 	import DriveRecentTable from '$lib/components/drive/drive-recent-table.svelte';
 	import DriveFileActionsMenu from '$lib/components/drive/drive-file-actions-menu.svelte';
 	import DriveFileDialogs from '$lib/components/drive/drive-file-dialogs.svelte';
+	import DriveSelectionBar from '$lib/components/drive/drive-selection-bar.svelte';
+	import DriveBulkColorDialog from '$lib/components/drive/drive-bulk-color-dialog.svelte';
 	import { storageProviderLabel } from '$lib/model/storage-provider';
 	import { toastService } from '$lib/service/toast.service.svelte';
 	import { StatusColorEnum } from '$lib/model/enum/color.enum';
@@ -53,14 +56,29 @@
 	const team = $derived(data.teamView);
 	const teamStorage = $derived(team?.storageProvider ?? 'local');
 
+	const selection = createDriveSelection();
 	const actions = createDriveFileActions({
 		menuElementId: 'team-recent-file-actions-menu-float',
 		buttonIdPrefix: 'team-recent-file-actions-btn-',
 		getRows: () => rows,
 		canEditItem: (item) => canEditRecentItem(item as RecentDriveItem)
 	});
+	const bulk = createDriveBulkActions({
+		selection,
+		getRows: () => rows,
+		canEditItem: (item) => canEditRecentItem(item as RecentDriveItem),
+		storageProvider: () => teamStorage,
+		teamId: () => team?.id
+	});
 
-	onMount(() => actions.attachMenuListeners());
+	onMount(() => {
+		const detachMenu = actions.attachMenuListeners();
+		const detachSelection = selection.attachEscapeListener();
+		return () => {
+			detachMenu();
+			detachSelection();
+		};
+	});
 	useDriveListLoader(loadRecent);
 
 	function mapRecentRow(f: ApiRecentFile): RecentDriveItem {
@@ -92,6 +110,7 @@
 	}
 
 	async function loadRecent() {
+		selection.clear();
 		if (!team) {
 			rows = [];
 			return;
@@ -145,11 +164,27 @@
 		aria-label="Recent team files"
 	>
 		<div class="d-card-body flex min-h-0 flex-1 flex-col p-0">
+			<DriveSelectionBar
+				count={selection.count}
+				busy={bulk.busy}
+				showDownload
+				showTrash={bulk.allSelectedEditable()}
+				showPin={bulk.allSelectedEditable()}
+				showStar={bulk.allSelectedEditable()}
+				showColor={bulk.allSelectedEditable()}
+				onClear={() => selection.clear()}
+				onDownload={() => void bulk.bulkDownload()}
+				onTrash={() => void bulk.bulkTrash()}
+				onPin={() => void bulk.bulkPin()}
+				onStar={() => void bulk.bulkStar()}
+				onColor={() => bulk.openBulkColor()}
+			/>
 			<DriveRecentTable
 				{rows}
 				{loading}
 				storageLabel={storageProviderLabel(teamStorage)}
 				{actions}
+				{selection}
 				buttonIdPrefix="team-recent-file-actions-btn-"
 				emptyMessage="No recent files or folders in this team yet."
 				onEnterFolder={enterFolder}
@@ -162,3 +197,4 @@
 
 <DriveFileActionsMenu {actions} menuElementId="team-recent-file-actions-menu-float" />
 <DriveFileDialogs {actions} />
+<DriveBulkColorDialog {bulk} />

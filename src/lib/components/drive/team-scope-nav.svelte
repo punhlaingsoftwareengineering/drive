@@ -5,6 +5,7 @@
 		LucideClock,
 		LucideHouse,
 		LucideLayoutDashboard,
+		LucideSettings,
 		LucideShare,
 		LucideTrash
 	} from '@lucide/svelte';
@@ -53,6 +54,13 @@
 			label: 'Dashboard',
 			icon: LucideLayoutDashboard,
 			btnClass: 'd-btn-success'
+		},
+		{
+			view: 'settings' as const,
+			href: `${base}/settings`,
+			label: 'Settings',
+			icon: LucideSettings,
+			btnClass: 'd-btn-neutral'
 		}
 	]);
 </script>

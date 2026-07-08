@@ -2,6 +2,10 @@ import { buildFolderZipBuffer } from '$lib/server/drive-folder-zip';
 import { userCanAccessFile } from '$lib/server/team-access';
 import { openFileBuffer } from '$lib/server/drive-seal';
 import { requireApiSession } from '$lib/server/require-api-session';
+import {
+	assertTeamKeyCanAccessFileRow,
+	assertTeamKeyHas
+} from '$lib/server/team-api-key-scope';
 import { readStoredBlob } from '$lib/server/drive-load';
 import { canAccessSharedItem, sharedRootIdsForRecipient } from '$lib/server/drive-shared-access';
 import { db } from '$lib/server/db';
@@ -24,6 +28,7 @@ function zipAttachmentName(folderName: string): string {
 
 export const GET: RequestHandler = async ({ request, params }) => {
 	const session = await requireApiSession(request);
+	assertTeamKeyHas(session, 'drive.read');
 
 	const id = params.id;
 	if (!id) throw error(400, 'Missing id');
@@ -57,6 +62,7 @@ export const GET: RequestHandler = async ({ request, params }) => {
 	}
 
 	if (!allowed) throw error(403, 'Forbidden');
+	assertTeamKeyCanAccessFileRow(session, row);
 
 	if (row.itemType === 'folder') {
 		let buf: Buffer;

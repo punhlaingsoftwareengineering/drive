@@ -1,8 +1,7 @@
 import { db } from '$lib/server/db';
-import { AuthUserSchema } from '$lib/server/db/schema/auth-schema/auth.schema';
 import { TeamMemberSchema, TeamSchema } from '$lib/server/db/schema/main-schema/team.schema';
 import { error } from '@sveltejs/kit';
-import { and, desc, eq, inArray } from 'drizzle-orm';
+import { and, desc, eq } from 'drizzle-orm';
 
 export async function requireTeamMember(userId: string, teamId: string): Promise<void> {
 	if (!(await isTeamMember(userId, teamId))) {
@@ -38,17 +37,4 @@ export async function userCanAccessFile(
 		return row.ownerId === userId;
 	}
 	return isTeamMember(userId, row.teamId);
-}
-
-export async function findUsersByEmails(emails: string[]) {
-	if (emails.length === 0) return new Map<string, { id: string; email: string }>();
-	const rows = await db
-		.select({ id: AuthUserSchema.id, email: AuthUserSchema.email })
-		.from(AuthUserSchema)
-		.where(inArray(AuthUserSchema.email, emails));
-	const map = new Map<string, { id: string; email: string }>();
-	for (const r of rows) {
-		map.set(r.email.toLowerCase(), { id: r.id, email: r.email });
-	}
-	return map;
 }

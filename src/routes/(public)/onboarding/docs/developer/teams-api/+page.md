@@ -152,9 +152,74 @@ The web UI uses `slug` in URLs (`/home/team/engineering`); the API uses **UUID**
 
 ---
 
+## Team API keys (`znltv_…`)
+
+Team-scoped keys are created in **Team settings → Developer API** (team owner/admin + Profile developer mode). They authenticate as the creating user but are limited to **one team** and a chosen permission set.
+
+Management endpoints require a **cookie session** (keys cannot manage themselves).
+
+### `GET /api/teams/[teamId]/api-keys`
+
+List team keys (masked). Team members with developer mode can list; creation requires admin.
+
+**Response** `200`
+
+```json
+{
+  "keys": [
+    {
+      "id": "uuid",
+      "name": "CI sync",
+      "prefix": "znltv_AbCdEfGhIjKl",
+      "permissions": ["drive.read", "drive.write"],
+      "limits": { "folders": 50, "files": 5000 },
+      "lastUsedAt": null,
+      "createdAt": "2026-01-01T00:00:00.000Z"
+    }
+  ]
+}
+```
+
+### `POST /api/teams/[teamId]/api-keys`
+
+Create a team key. Caller must be team **owner or admin** with developer mode enabled.
+
+**Body**
+
+```json
+{
+  "name": "CI sync",
+  "permissions": ["drive.read", "drive.write"],
+  "limits": { "folders": 50, "files": 5000 }
+}
+```
+
+At least one permission is required. Owners may include `team.delete`; admins cannot.
+
+**Response** `200` — includes `plaintext` once (same as user keys).
+
+### `PATCH /api/teams/[teamId]/api-keys/[id]`
+
+Update permissions and folder/file limits on an existing key.
+
+### `DELETE /api/teams/[teamId]/api-keys/[id]`
+
+Revoke a team key.
+
+**Team key behavior with Drive/Teams APIs**
+
+- Prefix `znltv_`; bound to the team where created.
+- `teamId` may be omitted on drive calls — defaults to the bound team.
+- Cannot access personal drive, other teams, or `POST /api/teams`.
+- Each route checks the key’s permissions (`drive.read`, `invites.manage`, etc.).
+
+See [Authentication](./authentication) and [Conventions](./conventions) for the full permission list.
+
+---
+
 ## Related
 
 - [Drive API](./drive-api)
-- [Workflows](./workflows#team-drive)
+- [Workflows](./workflows)
 - [Conventions](./conventions)
 - [REST API reference](./rest-api)

@@ -1,4 +1,9 @@
 import { requireApiSession } from '$lib/server/require-api-session';
+import {
+	assertTeamKeyCanAccessFileRow,
+	assertTeamKeyHas,
+	resolveEffectiveTeamIdParam
+} from '$lib/server/team-api-key-scope';
 import { db } from '$lib/server/db';
 import { MainFileSchema } from '$lib/server/db/schema/main-schema/main.schema';
 import { TeamSchema } from '$lib/server/db/schema/main-schema/team.schema';
@@ -18,6 +23,7 @@ const bodySchema = z.object({
 
 export const POST: RequestHandler = async ({ request }) => {
 	const session = await requireApiSession(request);
+	assertTeamKeyHas(session, 'drive.write');
 
 	let raw: unknown;
 	try {
@@ -29,8 +35,9 @@ export const POST: RequestHandler = async ({ request }) => {
 	const parsed = bodySchema.safeParse(raw);
 	if (!parsed.success) throw error(400, parsed.error.message);
 
-	const { orderedIds, teamId } = parsed.data;
+	const { orderedIds } = parsed.data;
 	const storageProvider = parsed.data.storageProvider ?? 'local';
+	const teamId = resolveEffectiveTeamIdParam(session, parsed.data.teamId);
 	let parentId: string | null = parsed.data.parentId ?? null;
 
 	if (teamId) {
@@ -77,6 +84,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		} else if (row.storageProvider !== storageProvider) {
 			throw error(400, 'Storage provider mismatch');
 		}
+		assertTeamKeyCanAccessFileRow(session, row);
 	}
 
 	const idSet = new Set(orderedIds);

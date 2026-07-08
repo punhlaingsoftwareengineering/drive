@@ -11,15 +11,20 @@
 		type ApiDriveFile,
 		type TrashDriveItem
 	} from '$lib/components/drive/drive-item';
+	import { createDriveSelection } from '$lib/components/drive/use-drive-selection.svelte';
+	import { createDriveBulkActions } from '$lib/components/drive/use-drive-bulk-actions.svelte';
 	import { useDriveListLoader } from '$lib/components/drive/use-drive-list-loader.svelte';
 	import DriveListStatus from '$lib/components/drive/drive-list-status.svelte';
 	import DriveTrashTable from '$lib/components/drive/drive-trash-table.svelte';
+	import DriveSelectionBar from '$lib/components/drive/drive-selection-bar.svelte';
+	import DriveBulkColorDialog from '$lib/components/drive/drive-bulk-color-dialog.svelte';
 	import { storageProviderLabel } from '$lib/model/storage-provider';
 	import { bumpDriveListRefresh } from '$lib/state/drive-refresh.svelte';
 	import { toastService } from '$lib/service/toast.service.svelte';
 	import { StatusColorEnum } from '$lib/model/enum/color.enum';
 	import type { FileLabelColorId } from '$lib/model/file-label-color';
 	import type { PageProps } from './$types';
+	import { onMount } from 'svelte';
 
 	type ApiTrashRow = ApiDriveFile & { trashedAt: string; purgeAt: string };
 
@@ -34,6 +39,15 @@
 	const team = $derived(data.teamView);
 	const teamStorage = $derived(team?.storageProvider ?? 'local');
 
+	const selection = createDriveSelection();
+	const bulk = createDriveBulkActions({
+		selection,
+		getRows: () => rows,
+		storageProvider: () => teamStorage,
+		teamId: () => team?.id
+	});
+
+	onMount(() => selection.attachEscapeListener());
 	useDriveListLoader(loadTrash);
 
 	function mapTrashRow(f: ApiTrashRow): TrashDriveItem {
@@ -58,6 +72,7 @@
 	}
 
 	async function loadTrash() {
+		selection.clear();
 		if (!team) {
 			rows = [];
 			return;
@@ -164,10 +179,26 @@
 
 	<div class="d-card flex min-h-0 flex-1 flex-col border border-base-300 bg-base-100 shadow-sm">
 		<div class="d-card-body flex min-h-0 flex-1 flex-col p-0">
+			<DriveSelectionBar
+				count={selection.count}
+				busy={bulk.busy}
+				showRestore
+				showDeleteForever
+				showPin
+				showStar
+				showColor
+				onClear={() => selection.clear()}
+				onRestore={() => void bulk.bulkRestore()}
+				onDeleteForever={() => void bulk.bulkDeleteForever()}
+				onPin={() => void bulk.bulkPin()}
+				onStar={() => void bulk.bulkStar()}
+				onColor={() => bulk.openBulkColor()}
+			/>
 			<DriveTrashTable
 				{rows}
 				{loading}
 				{busyId}
+				{selection}
 				{purgeLabel}
 				emptyMessage="Team trash is empty for {storageProviderLabel(teamStorage)}."
 				onTogglePin={(item) =>
@@ -184,3 +215,5 @@
 		</div>
 	</div>
 </div>
+
+<DriveBulkColorDialog {bulk} />

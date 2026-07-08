@@ -39,9 +39,14 @@ export const MainFileSchema = pgTable(
 		isEncrypted: boolean('is_encrypted').notNull().default(true),
 		isCompressed: boolean('is_compressed').notNull().default(true),
 		sortOrder: integer('sort_order').notNull().default(0),
+		/** Set when the row was created via a developer API key. */
+		createdByApiKeyId: uuid('created_by_api_key_id'),
 		...createUpdateTimestamp
 	},
-	(t) => [index('main_file_teamId_idx').on(t.teamId)]
+	(t) => [
+		index('main_file_teamId_idx').on(t.teamId),
+		index('main_file_created_by_api_key_id_idx').on(t.createdByApiKeyId)
+	]
 );
 
 export const MainFileShareSchema = pgTable('main_file_share', {

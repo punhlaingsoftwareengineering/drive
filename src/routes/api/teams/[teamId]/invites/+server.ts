@@ -1,5 +1,7 @@
 import { inviteEmailsToExistingTeam } from '$lib/server/team-create-root';
 import { requireApiSession } from '$lib/server/require-api-session';
+import { assertTeamKeyHas, assertTeamRouteAccess } from '$lib/server/team-api-key-scope';
+import { resolveTeamRouteId } from '$lib/server/team-manage';
 import { error, json } from '@sveltejs/kit';
 import { z } from 'zod';
 import type { RequestHandler } from './$types';
@@ -12,8 +14,11 @@ const bodySchema = z
 
 export const POST: RequestHandler = async ({ request, params }) => {
 	const session = await requireApiSession(request);
-	const teamId = params.teamId;
-	if (!teamId) throw error(400, 'Missing team id');
+	if (!params.teamId) throw error(400, 'Missing team id');
+	const teamId = await resolveTeamRouteId(params.teamId);
+	if (!teamId) throw error(404, 'Team not found');
+	assertTeamRouteAccess(session, teamId);
+	assertTeamKeyHas(session, 'invites.manage');
 
 	let raw: unknown;
 	try {

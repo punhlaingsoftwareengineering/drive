@@ -7,7 +7,7 @@ import {
 
 describe('team-scope', () => {
 	it('lists expected subpaths', () => {
-		expect(TEAM_SCOPE_SUBPATHS).toEqual(['shared', 'recent', 'trash', 'dashboard']);
+		expect(TEAM_SCOPE_SUBPATHS).toEqual(['shared', 'recent', 'trash', 'dashboard', 'settings']);
 	});
 
 	it('recognizes valid subpaths', () => {
@@ -21,6 +21,7 @@ describe('team-scope', () => {
 		expect(parseTeamScopeView('')).toBe('home');
 		expect(parseTeamScopeView('shared')).toBe('shared');
 		expect(parseTeamScopeView('dashboard')).toBe('dashboard');
+		expect(parseTeamScopeView('settings')).toBe('settings');
 		expect(parseTeamScopeView('bogus')).toBe('home');
 	});
 });

@@ -6,13 +6,17 @@
 	import { page } from '$app/state';
 	import { downloadDriveFileAsBlob } from '$lib/client/drive-file';
 	import { mapApiFile, type ApiDriveFile, type DriveItem } from '$lib/components/drive/drive-item';
+	import { createDriveSelection } from '$lib/components/drive/use-drive-selection.svelte';
+	import { createDriveBulkActions } from '$lib/components/drive/use-drive-bulk-actions.svelte';
 	import { useDriveListLoader } from '$lib/components/drive/use-drive-list-loader.svelte';
 	import DriveListStatus from '$lib/components/drive/drive-list-status.svelte';
 	import DriveSharedTable from '$lib/components/drive/drive-shared-table.svelte';
+	import DriveSelectionBar from '$lib/components/drive/drive-selection-bar.svelte';
 	import { storageProviderLabel } from '$lib/model/storage-provider';
 	import { toastService } from '$lib/service/toast.service.svelte';
 	import { StatusColorEnum } from '$lib/model/enum/color.enum';
 	import type { PageProps } from './$types';
+	import { onMount } from 'svelte';
 
 	let { data }: PageProps = $props();
 
@@ -27,6 +31,16 @@
 		team ? resolveHref(`/home/team/${team.slug}/shared`) : resolve('/home/shared')
 	);
 
+	const selection = createDriveSelection();
+	const bulk = createDriveBulkActions({
+		selection,
+		getRows: () => rows,
+		canEditItem: () => false,
+		storageProvider: () => teamStorage,
+		teamId: () => team?.id
+	});
+
+	onMount(() => selection.attachEscapeListener());
 	useDriveListLoader(loadShared);
 
 	function enterFolder(item: DriveItem) {
@@ -35,6 +49,7 @@
 	}
 
 	async function loadShared() {
+		selection.clear();
 		if (!team) {
 			rows = [];
 			return;
@@ -92,10 +107,18 @@
 
 	<div class="d-card flex min-h-0 flex-1 flex-col border border-base-300 bg-base-100 shadow-sm">
 		<div class="d-card-body flex min-h-0 flex-1 flex-col p-0">
+			<DriveSelectionBar
+				count={selection.count}
+				busy={bulk.busy}
+				showDownload
+				onClear={() => selection.clear()}
+				onDownload={() => void bulk.bulkDownload()}
+			/>
 			<DriveSharedTable
 				{rows}
 				{loading}
 				{busyId}
+				{selection}
 				currentFolder={data.currentFolder}
 				{backFolderHref}
 				emptyMessage="Nothing shared from {team?.name ?? 'this team'} on {storageProviderLabel(teamStorage)} yet."

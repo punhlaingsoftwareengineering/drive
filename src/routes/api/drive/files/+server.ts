@@ -4,8 +4,9 @@ import {
 } from '$lib/server/drive-folder-size';
 import { sizeBytesJson } from '$lib/server/drive-size-json';
 import { requireApiSession } from '$lib/server/require-api-session';
+import { assertTeamKeyHas, resolveEffectiveTeamId } from '$lib/server/team-api-key-scope';
+import { getUsersByIds, ownerDisplayName, withOwnerDisplay } from '$lib/server/auth-user-lookup';
 import { db } from '$lib/server/db';
-import { AuthUserSchema } from '$lib/server/db/schema/auth-schema/auth.schema';
 import { MainFileSchema } from '$lib/server/db/schema/main-schema/main.schema';
 import { TeamSchema } from '$lib/server/db/schema/main-schema/team.schema';
 import { isTeamMember } from '$lib/server/team-access';
@@ -15,13 +16,13 @@ import { and, asc, eq, isNull } from 'drizzle-orm';
 import { z } from 'zod';
 import type { RequestHandler } from './$types';
 
-function ownerDisplayName(name: string | null | undefined, email: string): string {
-	const n = name?.trim();
-	return n || email;
+function ownerDisplayNameFromRow(name: string, email: string): string {
+	return ownerDisplayName(name, email);
 }
 
 export const GET: RequestHandler = async ({ request, url }) => {
 	const session = await requireApiSession(request);
+	assertTeamKeyHas(session, 'drive.read');
 
 	const raw = url.searchParams.get('storageProvider') ?? 'local';
 	if (!STORAGE_PROVIDERS.includes(raw as StorageProviderId)) {
@@ -29,15 +30,9 @@ export const GET: RequestHandler = async ({ request, url }) => {
 	}
 	const storageProvider = raw as StorageProviderId;
 
-	const teamParam = url.searchParams.get('teamId');
-	let teamId: string | null = null;
-	if (teamParam && teamParam.trim() !== '') {
-		const t = z.string().uuid().safeParse(teamParam.trim());
-		if (!t.success) throw error(400, 'Invalid team id');
-		teamId = t.data;
-		if (!(await isTeamMember(session.user.id, teamId))) {
-			throw error(403, 'Forbidden');
-		}
+	const teamId = resolveEffectiveTeamId(session, url);
+	if (teamId && !(await isTeamMember(session.user.id, teamId))) {
+		throw error(403, 'Forbidden');
 	}
 
 	const parentParam = url.searchParams.get('parentId') ?? url.searchParams.get('folder');
@@ -72,7 +67,7 @@ export const GET: RequestHandler = async ({ request, url }) => {
 				eq(MainFileSchema.storageProvider, storageProvider)
 			);
 
-	const rows = await db
+	const rowsRaw = await db
 		.select({
 			id: MainFileSchema.id,
 			name: MainFileSchema.name,
@@ -85,13 +80,14 @@ export const GET: RequestHandler = async ({ request, url }) => {
 			color: MainFileSchema.color,
 			parentId: MainFileSchema.parentId,
 			sortOrder: MainFileSchema.sortOrder,
-			ownerName: AuthUserSchema.name,
-			ownerEmail: AuthUserSchema.email
+			ownerId: MainFileSchema.ownerId
 		})
 		.from(MainFileSchema)
-		.innerJoin(AuthUserSchema, eq(MainFileSchema.ownerId, AuthUserSchema.id))
 		.where(and(personalOrTeam, isNull(MainFileSchema.trashedAt), parentFilter))
 		.orderBy(asc(MainFileSchema.sortOrder), asc(MainFileSchema.name));
+
+	const users = await getUsersByIds(rowsRaw.map((r) => r.ownerId));
+	const rows = withOwnerDisplay(rowsRaw, users);
 
 	const folderIds = rows.filter((r) => r.itemType === 'folder').map((r) => r.id);
 	const subtreeBytes = teamId
@@ -114,7 +110,7 @@ export const GET: RequestHandler = async ({ request, url }) => {
 			color: r.color,
 			parentId: r.parentId ?? null,
 			sortOrder: r.sortOrder,
-			ownerName: ownerDisplayName(r.ownerName, r.ownerEmail)
+			ownerName: ownerDisplayNameFromRow(r.ownerName, r.ownerEmail)
 		}))
 	});
 };

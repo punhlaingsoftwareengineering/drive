@@ -1,13 +1,14 @@
 import { canAccessSharedItem, sharedRootIdsForRecipient } from '$lib/server/drive-shared-access';
 import { sizeBytesJson } from '$lib/server/drive-size-json';
+import { assertTeamKeyHas } from '$lib/server/team-api-key-scope';
 import { requireApiSession } from '$lib/server/require-api-session';
 import {
 	sumSubtreeFileBytesForFolderRows,
 	sumSubtreeFileBytesForFoldersTeam
 } from '$lib/server/drive-folder-size';
 import { resolveTeamApiContext } from '$lib/server/team-api-scope';
+import { getUsersByIds, ownerDisplayName } from '$lib/server/auth-user-lookup';
 import { db } from '$lib/server/db';
-import { AuthUserSchema } from '$lib/server/db/schema/auth-schema/auth.schema';
 import { MainFileSchema, MainFileShareSchema } from '$lib/server/db/schema/main-schema/main.schema';
 import { STORAGE_PROVIDERS, type StorageProviderId } from '$lib/model/storage-provider';
 import { error, json } from '@sveltejs/kit';
@@ -15,28 +16,39 @@ import { and, eq, inArray, isNull } from 'drizzle-orm';
 import { z } from 'zod';
 import type { RequestHandler } from './$types';
 
-function ownerDisplayName(name: string | null | undefined, email: string): string {
-	const n = name?.trim();
-	return n || email;
+
+type FileRowBase = {
+	id: string;
+	ownerId: string;
+	name: string;
+	itemType: string;
+	sizeBytes: unknown;
+	updatedAt: Date;
+	storageProvider: string;
+	isPinned: boolean;
+	isStarred: boolean;
+	color: string | null;
+	parentId: string | null;
+	permission?: string;
+};
+
+async function enrichFileRows<T extends FileRowBase>(
+	rows: T[]
+): Promise<Array<T & { ownerName: string | null; ownerEmail: string }>> {
+	const users = await getUsersByIds(rows.map((r) => r.ownerId));
+	return rows.map((r) => {
+		const u = users.get(r.ownerId);
+		const email = u?.email ?? '';
+		return {
+			...r,
+			ownerEmail: email,
+			ownerName: u?.name ?? null
+		};
+	});
 }
 
 function mapFileRow(
-	r: {
-		id: string;
-		ownerId: string;
-		name: string;
-		itemType: string;
-		sizeBytes: unknown;
-		updatedAt: Date;
-		storageProvider: string;
-		isPinned: boolean;
-		isStarred: boolean;
-		color: string | null;
-		parentId: string | null;
-		ownerName: string | null;
-		ownerEmail: string;
-		permission?: string;
-	},
+	r: FileRowBase & { ownerName: string | null; ownerEmail: string },
 	subtreeBytes: Map<string, number>
 ) {
 	return {
@@ -74,7 +86,7 @@ async function listTeamOutboundSharedRoots(teamId: string, storageProvider: Stor
 	const ids = sharedFileIds.map((r) => r.fileId);
 	if (ids.length === 0) return [];
 
-	const files = await db
+	const filesRaw = await db
 		.select({
 			id: MainFileSchema.id,
 			ownerId: MainFileSchema.ownerId,
@@ -87,14 +99,13 @@ async function listTeamOutboundSharedRoots(teamId: string, storageProvider: Stor
 			isStarred: MainFileSchema.isStarred,
 			color: MainFileSchema.color,
 			parentId: MainFileSchema.parentId,
-			ownerName: AuthUserSchema.name,
-			ownerEmail: AuthUserSchema.email,
 			permission: MainFileShareSchema.permission
 		})
 		.from(MainFileSchema)
-		.innerJoin(AuthUserSchema, eq(MainFileSchema.ownerId, AuthUserSchema.id))
 		.innerJoin(MainFileShareSchema, eq(MainFileShareSchema.fileId, MainFileSchema.id))
 		.where(inArray(MainFileSchema.id, ids));
+
+	const files = await enrichFileRows(filesRaw);
 
 	const byId = new Map(files.map((f) => [f.id, f]));
 	const sharedSet = new Set(ids);
@@ -114,7 +125,8 @@ async function listTeamOutboundSharedRoots(teamId: string, storageProvider: Stor
 
 export const GET: RequestHandler = async ({ request, url }) => {
 	const session = await requireApiSession(request);
-	const teamCtx = await resolveTeamApiContext(session.user.id, url);
+	assertTeamKeyHas(session, 'drive.read');
+	const teamCtx = await resolveTeamApiContext(session.user.id, url, session);
 
 	const raw = url.searchParams.get('storageProvider') ?? 'local';
 	if (!STORAGE_PROVIDERS.includes(raw as StorageProviderId)) {
@@ -151,7 +163,7 @@ export const GET: RequestHandler = async ({ request, url }) => {
 				throw error(404, 'Folder not found');
 			}
 
-			const rows = await db
+			const rowsRaw = await db
 				.select({
 					id: MainFileSchema.id,
 					ownerId: MainFileSchema.ownerId,
@@ -163,12 +175,9 @@ export const GET: RequestHandler = async ({ request, url }) => {
 					isPinned: MainFileSchema.isPinned,
 					isStarred: MainFileSchema.isStarred,
 					color: MainFileSchema.color,
-					parentId: MainFileSchema.parentId,
-					ownerName: AuthUserSchema.name,
-					ownerEmail: AuthUserSchema.email
+					parentId: MainFileSchema.parentId
 				})
 				.from(MainFileSchema)
-				.innerJoin(AuthUserSchema, eq(MainFileSchema.ownerId, AuthUserSchema.id))
 				.where(
 					and(
 						eq(MainFileSchema.parentId, parsed.data),
@@ -177,6 +186,8 @@ export const GET: RequestHandler = async ({ request, url }) => {
 						isNull(MainFileSchema.trashedAt)
 					)
 				);
+
+			const rows = await enrichFileRows(rowsRaw);
 
 			const folderRows = rows.filter((r) => r.itemType === 'folder');
 			const subtreeBytes = await sumSubtreeFileBytesForFoldersTeam(
@@ -240,7 +251,7 @@ export const GET: RequestHandler = async ({ request, url }) => {
 			throw error(404, 'Folder not found');
 		}
 
-		const rows = await db
+		const rowsRaw = await db
 			.select({
 				id: MainFileSchema.id,
 				ownerId: MainFileSchema.ownerId,
@@ -252,12 +263,9 @@ export const GET: RequestHandler = async ({ request, url }) => {
 				isPinned: MainFileSchema.isPinned,
 				isStarred: MainFileSchema.isStarred,
 				color: MainFileSchema.color,
-				parentId: MainFileSchema.parentId,
-				ownerName: AuthUserSchema.name,
-				ownerEmail: AuthUserSchema.email
+				parentId: MainFileSchema.parentId
 			})
 			.from(MainFileSchema)
-			.innerJoin(AuthUserSchema, eq(MainFileSchema.ownerId, AuthUserSchema.id))
 			.where(
 				and(
 					eq(MainFileSchema.parentId, parsed.data),
@@ -266,6 +274,8 @@ export const GET: RequestHandler = async ({ request, url }) => {
 					isNull(MainFileSchema.trashedAt)
 				)
 			);
+
+		const rows = await enrichFileRows(rowsRaw);
 
 		const folderRows = rows.filter((r) => r.itemType === 'folder');
 		const subtreeBytes = await sumSubtreeFileBytesForFolderRows(
@@ -282,7 +292,7 @@ export const GET: RequestHandler = async ({ request, url }) => {
 		});
 	}
 
-	const rows = await db
+	const rowsRaw = await db
 		.select({
 			id: MainFileSchema.id,
 			ownerId: MainFileSchema.ownerId,
@@ -295,13 +305,10 @@ export const GET: RequestHandler = async ({ request, url }) => {
 			isStarred: MainFileSchema.isStarred,
 			color: MainFileSchema.color,
 			parentId: MainFileSchema.parentId,
-			ownerName: AuthUserSchema.name,
-			ownerEmail: AuthUserSchema.email,
 			permission: MainFileShareSchema.permission
 		})
 		.from(MainFileShareSchema)
 		.innerJoin(MainFileSchema, eq(MainFileShareSchema.fileId, MainFileSchema.id))
-		.innerJoin(AuthUserSchema, eq(MainFileSchema.ownerId, AuthUserSchema.id))
 		.where(
 			and(
 				eq(MainFileShareSchema.targetEmail, email),
@@ -309,6 +316,8 @@ export const GET: RequestHandler = async ({ request, url }) => {
 				isNull(MainFileSchema.trashedAt)
 			)
 		);
+
+	const rows = await enrichFileRows(rowsRaw);
 
 	const folderRows = rows.filter((r) => r.itemType === 'folder');
 	const subtreeBytes = await sumSubtreeFileBytesForFolderRows(

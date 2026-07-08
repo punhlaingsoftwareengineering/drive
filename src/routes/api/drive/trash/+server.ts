@@ -1,27 +1,24 @@
 import { TRASH_RETENTION_DAYS } from '$lib/server/drive-trash-constants';
 import { sizeBytesJson } from '$lib/server/drive-size-json';
+import { assertTeamKeyHas } from '$lib/server/team-api-key-scope';
 import { requireApiSession } from '$lib/server/require-api-session';
 import {
 	sumSubtreeFileBytesForTrashedFolderRows,
 	sumSubtreeFileBytesForTrashedFolderRowsTeam
 } from '$lib/server/drive-folder-size';
 import { resolveTeamApiContext } from '$lib/server/team-api-scope';
+import { getUsersByIds, ownerDisplayName, withOwnerDisplay } from '$lib/server/auth-user-lookup';
 import { db } from '$lib/server/db';
-import { AuthUserSchema } from '$lib/server/db/schema/auth-schema/auth.schema';
 import { MainFileSchema } from '$lib/server/db/schema/main-schema/main.schema';
 import { STORAGE_PROVIDERS, type StorageProviderId } from '$lib/model/storage-provider';
 import { error, json } from '@sveltejs/kit';
 import { and, desc, eq, isNotNull, isNull } from 'drizzle-orm';
 import type { RequestHandler } from './$types';
 
-function ownerDisplayName(name: string | null | undefined, email: string): string {
-	const n = name?.trim();
-	return n || email;
-}
-
 export const GET: RequestHandler = async ({ request, url }) => {
 	const session = await requireApiSession(request);
-	const teamCtx = await resolveTeamApiContext(session.user.id, url);
+	assertTeamKeyHas(session, 'drive.read');
+	const teamCtx = await resolveTeamApiContext(session.user.id, url, session);
 
 	const raw = url.searchParams.get('storageProvider') ?? 'local';
 	if (!STORAGE_PROVIDERS.includes(raw as StorageProviderId)) {
@@ -42,7 +39,7 @@ export const GET: RequestHandler = async ({ request, url }) => {
 				isNotNull(MainFileSchema.trashedAt)
 			);
 
-	const rows = await db
+	const rowsRaw = await db
 		.select({
 			id: MainFileSchema.id,
 			ownerId: MainFileSchema.ownerId,
@@ -56,14 +53,14 @@ export const GET: RequestHandler = async ({ request, url }) => {
 			isPinned: MainFileSchema.isPinned,
 			isStarred: MainFileSchema.isStarred,
 			color: MainFileSchema.color,
-			parentId: MainFileSchema.parentId,
-			ownerName: AuthUserSchema.name,
-			ownerEmail: AuthUserSchema.email
+			parentId: MainFileSchema.parentId
 		})
 		.from(MainFileSchema)
-		.innerJoin(AuthUserSchema, eq(MainFileSchema.ownerId, AuthUserSchema.id))
 		.where(scopeFilter)
 		.orderBy(desc(MainFileSchema.trashedAt));
+
+	const users = await getUsersByIds(rowsRaw.map((r) => r.ownerId));
+	const rows = withOwnerDisplay(rowsRaw, users);
 
 	const folderRows = rows.filter((r) => r.itemType === 'folder');
 	const subtreeBytes = teamCtx

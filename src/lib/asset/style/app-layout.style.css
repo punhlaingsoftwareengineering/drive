@@ -34,9 +34,31 @@ body {
 .my-drive-shell {
 	--drive-navbar-height: 4rem;
 	--drive-sidebar-width: 16rem;
+	--drive-content-pad-bottom: max(3rem, env(safe-area-inset-bottom, 0px) + 2rem);
 
 	.my-main {
 		overflow: hidden;
+		min-height: 0;
+	}
+
+	.d-drawer {
+		min-height: 0;
+	}
+
+	.d-drawer-content {
+		min-height: 0;
+		height: 100%;
+		max-height: 100%;
+	}
+
+	.my-drive-content-scroll {
+		min-height: 0;
+		flex: 1 1 auto;
+		overflow-x: hidden;
+		overflow-y: auto;
+		overscroll-behavior-y: contain;
+		padding-bottom: var(--drive-content-pad-bottom);
+		scroll-padding-bottom: var(--drive-content-pad-bottom);
 	}
 
 	@media (width >= 1024px) {
@@ -50,6 +72,7 @@ body {
 
 		.d-drawer-open .d-drawer-content {
 			margin-inline-start: var(--drive-sidebar-width);
+			height: calc(100dvh - var(--drive-navbar-height));
 			max-height: calc(100dvh - var(--drive-navbar-height));
 		}
 	}

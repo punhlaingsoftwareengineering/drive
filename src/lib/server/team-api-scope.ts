@@ -1,3 +1,5 @@
+import type { DriveApiSession } from '$lib/server/require-api-session';
+import { resolveEffectiveTeamId } from '$lib/server/team-api-key-scope';
 import { db } from '$lib/server/db';
 import { TeamSchema } from '$lib/server/db/schema/main-schema/team.schema';
 import type { StorageProviderId } from '$lib/model/storage-provider';
@@ -12,24 +14,30 @@ export type TeamApiContext = {
 	storageProvider: StorageProviderId;
 };
 
-/** When `teamId` query param is present, resolve team and enforce membership. */
+/** When `teamId` query param is present (or bound on a team API key), resolve team context. */
 export async function resolveTeamApiContext(
 	userId: string,
-	url: URL
+	url: URL,
+	session?: DriveApiSession
 ): Promise<TeamApiContext | null> {
-	const rawTeamId = url.searchParams.get('teamId');
-	if (!rawTeamId || rawTeamId.trim() === '') return null;
+	const effectiveTeamId = session
+		? resolveEffectiveTeamId(session, url)
+		: (() => {
+				const rawTeamId = url.searchParams.get('teamId');
+				if (!rawTeamId || rawTeamId.trim() === '') return null;
+				const parsed = z.string().uuid().safeParse(rawTeamId.trim());
+				if (!parsed.success) throw error(400, 'Invalid team id');
+				return parsed.data;
+			})();
 
-	const parsed = z.string().uuid().safeParse(rawTeamId.trim());
-	if (!parsed.success) throw error(400, 'Invalid team id');
-
+	if (!effectiveTeamId) return null;
 	const [team] = await db
 		.select({
 			id: TeamSchema.id,
 			storageProvider: TeamSchema.storageProvider
 		})
 		.from(TeamSchema)
-		.where(eq(TeamSchema.id, parsed.data))
+		.where(eq(TeamSchema.id, effectiveTeamId))
 		.limit(1);
 
 	if (!team) throw error(404, 'Team not found');

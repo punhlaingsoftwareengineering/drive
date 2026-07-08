@@ -1,7 +1,7 @@
 import { pgTable, text, timestamp, boolean, index } from 'drizzle-orm/pg-core';
 import { createUpdateTimestamp } from '../schema-wrapper';
 
-export const AuthUserSchema = pgTable('auth_user', {
+export const AuthUserSchema = pgTable('user', {
 	id: text('id').primaryKey(),
 	name: text('name').notNull(),
 	email: text('email').notNull().unique(),
@@ -13,7 +13,7 @@ export const AuthUserSchema = pgTable('auth_user', {
 });
 
 export const AuthSessionSchema = pgTable(
-	'auth_session',
+	'session',
 	{
 		id: text('id').primaryKey(),
 		expiresAt: timestamp('expires_at').notNull(),
@@ -29,7 +29,7 @@ export const AuthSessionSchema = pgTable(
 );
 
 export const AuthAccountSchema = pgTable(
-	'auth_account',
+	'account',
 	{
 		id: text('id').primaryKey(),
 		accountId: text('account_id').notNull(),
@@ -50,7 +50,7 @@ export const AuthAccountSchema = pgTable(
 );
 
 export const AuthVerificationSchema = pgTable(
-	'auth_verification',
+	'verification',
 	{
 		id: text('id').primaryKey(),
 		identifier: text('identifier').notNull(),

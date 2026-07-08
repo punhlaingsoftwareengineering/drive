@@ -1,5 +1,7 @@
 import { auth } from '$lib/server/auth';
 import { tryResolveUserFromDeveloperApiKey } from '$lib/server/developer-api-key';
+import type { TeamApiKeyPermission } from '$lib/model/team-api-key-permission';
+import type { DeveloperApiKeyLimits } from '$lib/server/developer-api-limits';
 import { error, isHttpError } from '@sveltejs/kit';
 
 /** Minimal user shape used by drive APIs (cookie session or developer API key). */
@@ -9,6 +11,14 @@ export type DriveApiSession = {
 		email?: string | null;
 		name?: string | null;
 	};
+	/** True when authenticated via `znldv_…` developer API key (not a browser cookie). */
+	viaApiKey: boolean;
+	/** Present when `viaApiKey` is true. */
+	apiKeyId?: string;
+	apiKeyLimits?: DeveloperApiKeyLimits;
+	/** Set for team-scoped keys (`znltv_…`). */
+	apiKeyTeamId?: string | null;
+	apiKeyPermissions?: TeamApiKeyPermission[];
 };
 
 /**
@@ -24,7 +34,8 @@ export async function requireApiSession(request: Request): Promise<DriveApiSessi
 					id: session.user.id,
 					email: session.user.email,
 					name: session.user.name
-				}
+				},
+				viaApiKey: false
 			};
 		}
 		const fromKey = await tryResolveUserFromDeveloperApiKey(request);
@@ -34,7 +45,12 @@ export async function requireApiSession(request: Request): Promise<DriveApiSessi
 					id: fromKey.id,
 					email: fromKey.email,
 					name: fromKey.name
-				}
+				},
+				viaApiKey: true,
+				apiKeyId: fromKey.apiKeyId,
+				apiKeyLimits: fromKey.limits,
+				apiKeyTeamId: fromKey.teamId,
+				apiKeyPermissions: fromKey.permissions
 			};
 		}
 		throw error(401, 'Unauthorized');

@@ -1,6 +1,8 @@
 import { resolveParentFolderForTeam } from '$lib/server/drive-parent-team';
 import { resolveParentFolderForUser } from '$lib/server/drive-parent';
+import { assertDeveloperApiCanCreate } from '$lib/server/developer-api-limits';
 import { requireApiSession } from '$lib/server/require-api-session';
+import { assertTeamKeyHas, resolveEffectiveTeamIdParam } from '$lib/server/team-api-key-scope';
 import { isTeamMember } from '$lib/server/team-access';
 import {
 	localPathNewFolderAtRoot,
@@ -38,6 +40,7 @@ function safeFolderName(name: string): string {
 
 export const POST: RequestHandler = async ({ request }) => {
 	const session = await requireApiSession(request);
+	assertTeamKeyHas(session, 'drive.write');
 
 	let raw: unknown;
 	try {
@@ -52,7 +55,7 @@ export const POST: RequestHandler = async ({ request }) => {
 	const name = safeFolderName(parsed.data.name);
 
 	const userId = session.user.id;
-	const teamId = parsed.data.teamId;
+	const teamId = resolveEffectiveTeamIdParam(session, parsed.data.teamId);
 	if (teamId) {
 		if (!(await isTeamMember(userId, teamId))) {
 			throw error(403, 'Forbidden');
@@ -69,6 +72,10 @@ export const POST: RequestHandler = async ({ request }) => {
 			? { kind: 'team', teamId, storageProvider: provider }
 			: { kind: 'user', ownerId: userId, storageProvider: provider }
 	);
+
+	await assertDeveloperApiCanCreate(session, 'folders');
+
+	const createdByApiKeyId = session.apiKeyId ?? null;
 
 	if (provider === 'local') {
 		const userDir = teamId ? localTeamUploadDir(teamId) : localUserUploadDir(userId);
@@ -94,7 +101,8 @@ export const POST: RequestHandler = async ({ request }) => {
 			isEncrypted: false,
 			isCompressed: false,
 			color: null,
-			sortOrder
+			sortOrder,
+			createdByApiKeyId
 		});
 	} else {
 		const objectKey = parentFolder
@@ -130,7 +138,8 @@ export const POST: RequestHandler = async ({ request }) => {
 			isEncrypted: false,
 			isCompressed: false,
 			color: null,
-			sortOrder
+			sortOrder,
+			createdByApiKeyId
 		});
 	}
 

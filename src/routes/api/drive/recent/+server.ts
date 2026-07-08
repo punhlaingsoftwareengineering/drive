@@ -5,9 +5,10 @@ import {
 } from '$lib/server/drive-folder-size';
 import { sizeBytesJson } from '$lib/server/drive-size-json';
 import { requireApiSession } from '$lib/server/require-api-session';
+import { assertTeamKeyHas } from '$lib/server/team-api-key-scope';
 import { resolveTeamApiContext } from '$lib/server/team-api-scope';
+import { getUsersByIds, ownerDisplayName } from '$lib/server/auth-user-lookup';
 import { db } from '$lib/server/db';
-import { AuthUserSchema } from '$lib/server/db/schema/auth-schema/auth.schema';
 import { MainFileSchema, MainFileShareSchema } from '$lib/server/db/schema/main-schema/main.schema';
 import { TeamMemberSchema, TeamSchema } from '$lib/server/db/schema/main-schema/team.schema';
 import { STORAGE_PROVIDERS, type StorageProviderId } from '$lib/model/storage-provider';
@@ -38,11 +39,6 @@ function recencyMs(v: unknown): number {
 	return toDate(v).getTime();
 }
 
-function ownerDisplayName(name: string | null | undefined, email: string): string {
-	const n = name?.trim();
-	return n || email;
-}
-
 type Merged = {
 	id: string;
 	ownerId: string;
@@ -66,9 +62,10 @@ type Merged = {
 
 export const GET: RequestHandler = async ({ request, url }) => {
 	const session = await requireApiSession(request);
+	assertTeamKeyHas(session, 'drive.read');
 	const userId = session.user.id;
 	const email = session.user.email?.trim().toLowerCase() ?? null;
-	const teamCtx = await resolveTeamApiContext(userId, url);
+	const teamCtx = await resolveTeamApiContext(userId, url, session);
 
 	const raw = url.searchParams.get('storageProvider') ?? 'local';
 	if (!STORAGE_PROVIDERS.includes(raw as StorageProviderId)) {
@@ -88,8 +85,6 @@ export const GET: RequestHandler = async ({ request, url }) => {
 		isStarred: MainFileSchema.isStarred,
 		color: MainFileSchema.color,
 		parentId: MainFileSchema.parentId,
-		ownerName: AuthUserSchema.name,
-		ownerEmail: AuthUserSchema.email,
 		createdAt: MainFileSchema.createdAt
 	};
 
@@ -98,7 +93,6 @@ export const GET: RequestHandler = async ({ request, url }) => {
 		: await db
 				.select(fileFields)
 				.from(MainFileSchema)
-				.innerJoin(AuthUserSchema, eq(MainFileSchema.ownerId, AuthUserSchema.id))
 				.where(
 					and(
 						eq(MainFileSchema.ownerId, userId),
@@ -121,7 +115,6 @@ export const GET: RequestHandler = async ({ request, url }) => {
 					})
 					.from(MainFileShareSchema)
 					.innerJoin(MainFileSchema, eq(MainFileShareSchema.fileId, MainFileSchema.id))
-					.innerJoin(AuthUserSchema, eq(MainFileSchema.ownerId, AuthUserSchema.id))
 					.where(
 						and(
 							eq(MainFileShareSchema.targetEmail, email),
@@ -143,7 +136,6 @@ export const GET: RequestHandler = async ({ request, url }) => {
 			recency: recencyGreatest
 		})
 		.from(MainFileSchema)
-		.innerJoin(AuthUserSchema, eq(MainFileSchema.ownerId, AuthUserSchema.id))
 		.innerJoin(
 			TeamMemberSchema,
 			and(eq(TeamMemberSchema.teamId, MainFileSchema.teamId), eq(TeamMemberSchema.userId, userId))
@@ -165,6 +157,17 @@ export const GET: RequestHandler = async ({ request, url }) => {
 		.orderBy(desc(recencyGreatest))
 		.limit(PER_BRANCH);
 
+	const ownerIds = [
+		...ownRows.map((r) => r.ownerId),
+		...sharedRows.map((r) => r.ownerId),
+		...teamRows.map((r) => r.ownerId)
+	];
+	const users = await getUsersByIds(ownerIds);
+	const displayOwner = (ownerId: string) => {
+		const u = users.get(ownerId);
+		return ownerDisplayName(u?.name, u?.email ?? '');
+	};
+
 	const merged: Merged[] = [];
 
 	for (const r of ownRows) {
@@ -180,7 +183,7 @@ export const GET: RequestHandler = async ({ request, url }) => {
 			isStarred: r.isStarred,
 			color: r.color,
 			parentId: r.parentId ?? null,
-			ownerName: ownerDisplayName(r.ownerName, r.ownerEmail),
+			ownerName: displayOwner(r.ownerId),
 			source: 'own',
 			recency: toDate(r.createdAt),
 			teamId: null,
@@ -203,7 +206,7 @@ export const GET: RequestHandler = async ({ request, url }) => {
 			isStarred: r.isStarred,
 			color: r.color,
 			parentId: r.parentId ?? null,
-			ownerName: ownerDisplayName(r.ownerName, r.ownerEmail),
+			ownerName: displayOwner(r.ownerId),
 			source: 'shared',
 			recency: toDate(r.shareCreatedAt),
 			teamId: null,
@@ -226,7 +229,7 @@ export const GET: RequestHandler = async ({ request, url }) => {
 			isStarred: r.isStarred,
 			color: r.color,
 			parentId: r.parentId ?? null,
-			ownerName: ownerDisplayName(r.ownerName, r.ownerEmail),
+			ownerName: displayOwner(r.ownerId),
 			source: 'team',
 			recency: toDate(r.recency),
 			teamId: r.teamId,

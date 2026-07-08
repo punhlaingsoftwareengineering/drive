@@ -34,6 +34,10 @@ If `pnpm db:push` hangs at “Pulling schema from database…” then exits with
 | `PORT` | `1025` | adapter-node listen port. |
 | `BODY_SIZE_LIMIT` | `8M` | Max request body; must be ≥ 8 MiB upload chunks. |
 | `MAX_UPLOAD_BYTES` | `0` | Per-file byte cap; `0` = unlimited at app level. |
+| `DEVELOPER_API_MAX_TEAMS` | `0` | Per-user team-creation cap for **API key** requests; `0` = unlimited. |
+| `DEVELOPER_API_MAX_FOLDERS` | `0` | Per-user folder cap for API key requests. |
+| `DEVELOPER_API_MAX_FILES` | `0` | Per-user file cap for API key uploads. |
+| `DEVELOPER_API_MAX_API_KEYS` | `0` | Active API keys per user when creating keys in Profile. |
 | `LOCAL_DRIVE_DATA_DIR` | `~/Documents/znl-drive` (dev) / `/data/znl-drive` (Docker) | **Local** storage root **inside** the app process. |
 | `LOCAL_DRIVE_HOST_PATH` | `./data/znl-drive` | **Docker Compose only:** folder on the host disk bind-mounted to `LOCAL_DRIVE_DATA_DIR`. |
 

@@ -1,6 +1,6 @@
-export type TeamScopeView = 'home' | 'shared' | 'recent' | 'trash' | 'dashboard';
+export type TeamScopeView = 'home' | 'shared' | 'recent' | 'trash' | 'dashboard' | 'settings';
 
-export const TEAM_SCOPE_SUBPATHS = ['shared', 'recent', 'trash', 'dashboard'] as const;
+export const TEAM_SCOPE_SUBPATHS = ['shared', 'recent', 'trash', 'dashboard', 'settings'] as const;
 
 export type TeamScopeSubpath = (typeof TEAM_SCOPE_SUBPATHS)[number];
 

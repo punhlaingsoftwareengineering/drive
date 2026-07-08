@@ -1,8 +1,10 @@
 import { resolve } from '$app/paths';
 import { resolveHref } from '$lib/url/resolve-href';
+import { getDeveloperModeEnabled } from '$lib/server/auth-user-lookup';
+import { portalLoginUrl } from '$lib/server/portal-origin';
+import { getConfiguredOrigin } from '$lib/server/public-origin';
 import { canAccessSharedItem, sharedRootIdsForRecipient } from '$lib/server/drive-shared-access';
 import { db } from '$lib/server/db';
-import { AuthUserSchema } from '$lib/server/db/schema/auth-schema/auth.schema';
 import { MainFileSchema } from '$lib/server/db/schema/main-schema/main.schema';
 import { TeamSchema } from '$lib/server/db/schema/main-schema/team.schema';
 import { isTeamMember, listTeamsForUser } from '$lib/server/team-access';
@@ -43,7 +45,10 @@ function readAppVersion(): string {
 
 export const load: LayoutServerLoad = async ({ locals, url }) => {
 	if (!locals.user) {
-		throw redirect(303, '/auth/login');
+		const returnTo = getConfiguredOrigin()
+			? `${getConfiguredOrigin()}${url.pathname}${url.search}`
+			: undefined;
+		throw redirect(303, portalLoginUrl(returnTo));
 	}
 
 	const rel = pathWithoutBase(url.pathname);
@@ -128,6 +133,13 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 	}
 	if (teamScopeView === 'trash' && folderParamEarly && folderParamEarly.trim() !== '') {
 		throw redirect(303, resolveHref(`/home/team/${teamView!.slug}/trash`));
+	}
+	if (
+		(teamScopeView === 'dashboard' || teamScopeView === 'settings') &&
+		folderParamEarly &&
+		folderParamEarly.trim() !== ''
+	) {
+		throw redirect(303, resolveHref(`/home/team/${teamView!.slug}/${teamScopeView}`));
 	}
 
 	const folderParam = url.searchParams.get('folder');
@@ -332,12 +344,7 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 
 	let developerModeEnabled = false;
 	if (locals.user?.id) {
-		const [u] = await db
-			.select({ developerModeEnabled: AuthUserSchema.developerModeEnabled })
-			.from(AuthUserSchema)
-			.where(eq(AuthUserSchema.id, locals.user.id))
-			.limit(1);
-		developerModeEnabled = u?.developerModeEnabled ?? false;
+		developerModeEnabled = await getDeveloperModeEnabled(locals.user.id);
 	}
 
 	return {

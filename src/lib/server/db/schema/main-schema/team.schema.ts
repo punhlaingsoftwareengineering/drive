@@ -11,11 +11,14 @@ export const TeamSchema = pgTable(
 		createdByUserId: text('created_by_user_id').notNull(),
 		/** Filled after root folder row is created; may be null briefly during a transaction. */
 		rootFolderId: uuid('root_folder_id'),
+		/** Set when the team was created via a developer API key. */
+		createdByApiKeyId: uuid('created_by_api_key_id'),
 		storageProvider: MasterStorageProviderSchema('storage_provider').notNull().default('local'),
 		...createUpdateTimestamp
 	},
 	(t) => [
 		index('team_createdByUserId_idx').on(t.createdByUserId),
+		index('team_created_by_api_key_id_idx').on(t.createdByApiKeyId),
 		uniqueIndex('team_slug_uidx').on(t.slug)
 	]
 );
@@ -28,7 +31,7 @@ export const TeamMemberSchema = pgTable(
 			.notNull()
 			.references(() => TeamSchema.id, { onDelete: 'cascade' }),
 		userId: text('user_id').notNull(),
-		/** `owner` (creator) or `member` */
+		/** `owner` (single team owner), `admin`, or `member` */
 		role: text('role').notNull().default('member'),
 		...createUpdateTimestamp
 	},
