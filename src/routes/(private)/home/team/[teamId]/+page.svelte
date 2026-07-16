@@ -111,7 +111,7 @@
 		dropUploading = true;
 		dropProgress = 0;
 		try {
-			const parentId = page.url.searchParams.get('folder') ?? data.teamView.rootFolderId;
+			const parentId = page.url.searchParams.get('folder');
 			await uploadFilesWithProgress(
 				fileList,
 				teamStorage(),

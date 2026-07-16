@@ -74,11 +74,7 @@
 		hydrateStorageProviderFromStorage();
 	});
 
-	const driveParentForNew = $derived(
-		data.teamView
-			? (data.currentFolder?.id ?? data.teamView.rootFolderId)
-			: (data.currentFolder?.id ?? null)
-	);
+	const driveParentForNew = $derived(data.currentFolder?.id ?? null);
 	const activeStorageProvider = $derived(data.teamView?.storageProvider ?? driveStorage.current);
 
 	function onStorageProviderSelect(e: Event) {

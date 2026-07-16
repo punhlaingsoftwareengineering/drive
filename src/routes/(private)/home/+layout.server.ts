@@ -23,16 +23,7 @@ import { join } from 'node:path';
 import { and, eq, isNull } from 'drizzle-orm';
 import { z } from 'zod';
 
-/** Migration `0003_team_drive` not applied — team / team_member tables are missing. */
-function isMissingRelationError(e: unknown): boolean {
-	const code = (e as { cause?: { code?: string } })?.cause?.code;
-	if (code === '42P01') return true;
-	const msg = e instanceof Error ? e.message : String(e);
-	if (/relation "team"/i.test(msg) && /does not exist/i.test(msg)) return true;
-	if (/42P01/i.test(msg)) return true;
-	return false;
-}
-
+import { isMissingRelationError } from '$lib/server/db-errors';
 function readAppVersion(): string {
 	try {
 		const raw = readFileSync(join(process.cwd(), 'package.json'), 'utf-8');
@@ -65,7 +56,15 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 		throw redirect(303, resolve('/home/recent'));
 	}
 
-	const teams = await listTeamsForUser(locals.user.id);
+	const teams = await listTeamsForUser(locals.user.id).catch((e) => {
+		if (isMissingRelationError(e)) {
+			console.warn(
+				'[home] team tables missing — run `pnpm db:push` on the drive database. Showing personal drive only.'
+			);
+			return [] as Array<{ id: string; name: string; slug: string }>;
+		}
+		throw e;
+	});
 
 	let teamView: {
 		id: string;

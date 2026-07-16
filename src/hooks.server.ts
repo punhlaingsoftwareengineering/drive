@@ -103,7 +103,7 @@ export const handleError: HandleServerError = ({ error, event, status, message }
 	if (import.meta.env.DEV) {
 		console.error('[handleError]', status, path, err ?? message);
 	} else {
-		console.error('[handleError]', status, path);
+		console.error('[handleError]', status, path, err?.message ?? message);
 	}
 	const safe =
 		status === 404

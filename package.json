@@ -20,6 +20,7 @@
 		"db:generate": "drizzle-kit generate",
 		"db:migrate": "drizzle-kit migrate",
 		"db:studio": "drizzle-kit studio",
+		"migrate:portal-folders": "node --experimental-strip-types scripts/migrate-portal-folders.ts",
 		"auth:schema": "better-auth generate --config src/lib/server/auth.ts --output src/lib/server/db/schema/auth.schema.ts --yes",
 		"docker:build:local": "docker build -t drive:latest .",
 		"docker:build": "docker build -t ghcr.io/punhlaingsoftwareengineering/drive:latest .",

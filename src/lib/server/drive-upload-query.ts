@@ -1,10 +1,13 @@
 import { isTeamMember } from '$lib/server/team-access';
 import { resolveEffectiveTeamIdParam } from '$lib/server/team-api-key-scope';
 import type { DriveApiSession } from '$lib/server/require-api-session';
+import { db } from '$lib/server/db';
+import { TeamSchema } from '$lib/server/db/schema/main-schema/team.schema';
 import { STORAGE_PROVIDERS, type StorageProviderId } from '$lib/model/storage-provider';
 import { normalizeUploadMime } from '$lib/tool/mime-kind';
 import { error } from '@sveltejs/kit';
 import { z } from 'zod';
+import { eq } from 'drizzle-orm';
 
 const uuid = z.string().uuid();
 
@@ -47,6 +50,22 @@ async function parseOptionalTeamId(
 	return teamId;
 }
 
+async function assertTeamStorageProvider(
+	teamId: string | null,
+	storageProvider: StorageProviderId
+): Promise<void> {
+	if (!teamId) return;
+	const [team] = await db
+		.select({ sp: TeamSchema.storageProvider })
+		.from(TeamSchema)
+		.where(eq(TeamSchema.id, teamId))
+		.limit(1);
+	if (!team) throw error(404, 'Team not found');
+	if (team.sp !== storageProvider) {
+		throw error(400, 'Storage provider must match the team');
+	}
+}
+
 /** Read upload metadata from query string (binary body is `application/octet-stream`). */
 export async function parseChunkUploadQuery(
 	url: URL,
@@ -73,10 +92,12 @@ export async function parseChunkUploadQuery(
 		const parentId = parseOptionalUuid(url.searchParams.get('parentId'), 'parent folder');
 		const teamId = await parseOptionalTeamId(userId, url.searchParams.get('teamId'), session);
 		const fileName = url.searchParams.get('fileName')?.trim() || 'unnamed';
+		const storageProvider = parseStorageProvider(url.searchParams.get('storageProvider'));
+		await assertTeamStorageProvider(teamId, storageProvider);
 		init = {
 			fileName,
 			mimeType: normalizeUploadMime(fileName, url.searchParams.get('mimeType')),
-			storageProvider: parseStorageProvider(url.searchParams.get('storageProvider')),
+			storageProvider,
 			parentId,
 			teamId
 		};
@@ -101,9 +122,11 @@ export async function parseSimpleUploadQuery(
 
 	const parentId = parseOptionalUuid(url.searchParams.get('parentId'), 'parent folder');
 	const teamId = await parseOptionalTeamId(userId, url.searchParams.get('teamId'), session);
+	const storageProvider = parseStorageProvider(url.searchParams.get('storageProvider'));
+	await assertTeamStorageProvider(teamId, storageProvider);
 
 	return {
-		storageProvider: parseStorageProvider(url.searchParams.get('storageProvider')),
+		storageProvider,
 		parentId,
 		teamId,
 		fileName,

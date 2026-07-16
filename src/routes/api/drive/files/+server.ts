@@ -12,7 +12,7 @@ import { TeamSchema } from '$lib/server/db/schema/main-schema/team.schema';
 import { isTeamMember } from '$lib/server/team-access';
 import { STORAGE_PROVIDERS, type StorageProviderId } from '$lib/model/storage-provider';
 import { error, json } from '@sveltejs/kit';
-import { and, asc, eq, isNull } from 'drizzle-orm';
+import { and, asc, eq, isNull, ne, or } from 'drizzle-orm';
 import { z } from 'zod';
 import type { RequestHandler } from './$types';
 
@@ -54,7 +54,10 @@ export const GET: RequestHandler = async ({ request, url }) => {
 		if (trow.sp !== storageProvider) {
 			throw error(400, 'Storage provider must match the team');
 		}
-		parentFilter = eq(MainFileSchema.parentId, root);
+		parentFilter = or(
+			eq(MainFileSchema.parentId, root),
+			and(isNull(MainFileSchema.parentId), ne(MainFileSchema.id, root))
+		);
 	} else {
 		parentFilter = isNull(MainFileSchema.parentId);
 	}

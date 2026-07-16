@@ -1,4 +1,5 @@
 import { authDb } from '$lib/server/db/auth-db';
+import { isMissingColumnError } from '$lib/server/db-errors';
 import { AuthUserSchema } from '$lib/server/db/schema/auth-schema/auth.schema';
 import { eq, inArray } from 'drizzle-orm';
 
@@ -19,20 +20,42 @@ export async function getUsersByIds(ids: string[]): Promise<Map<string, AuthUser
 	const map = new Map<string, AuthUserSummary>();
 	if (unique.length === 0) return map;
 
-	const rows = await authDb
-		.select({
-			id: AuthUserSchema.id,
-			name: AuthUserSchema.name,
-			email: AuthUserSchema.email,
-			developerModeEnabled: AuthUserSchema.developerModeEnabled
-		})
-		.from(AuthUserSchema)
-		.where(inArray(AuthUserSchema.id, unique));
+	try {
+		const rows = await authDb
+			.select({
+				id: AuthUserSchema.id,
+				name: AuthUserSchema.name,
+				email: AuthUserSchema.email,
+				developerModeEnabled: AuthUserSchema.developerModeEnabled
+			})
+			.from(AuthUserSchema)
+			.where(inArray(AuthUserSchema.id, unique));
 
-	for (const row of rows) {
-		map.set(row.id, row);
+		for (const row of rows) {
+			map.set(row.id, row);
+		}
+		return map;
+	} catch (e) {
+		if (!isMissingColumnError(e, 'developer_mode_enabled')) throw e;
+
+		console.warn(
+			'[auth] user.developer_mode_enabled missing — run scripts/add-developer-mode-enabled.sql on the shared auth database.'
+		);
+
+		const rows = await authDb
+			.select({
+				id: AuthUserSchema.id,
+				name: AuthUserSchema.name,
+				email: AuthUserSchema.email
+			})
+			.from(AuthUserSchema)
+			.where(inArray(AuthUserSchema.id, unique));
+
+		for (const row of rows) {
+			map.set(row.id, { ...row, developerModeEnabled: false });
+		}
+		return map;
 	}
-	return map;
 }
 
 export async function findUsersByEmails(emails: string[]) {
@@ -49,12 +72,22 @@ export async function findUsersByEmails(emails: string[]) {
 }
 
 export async function getDeveloperModeEnabled(userId: string): Promise<boolean> {
-	const [row] = await authDb
-		.select({ v: AuthUserSchema.developerModeEnabled })
-		.from(AuthUserSchema)
-		.where(eq(AuthUserSchema.id, userId))
-		.limit(1);
-	return row?.v ?? false;
+	try {
+		const [row] = await authDb
+			.select({ v: AuthUserSchema.developerModeEnabled })
+			.from(AuthUserSchema)
+			.where(eq(AuthUserSchema.id, userId))
+			.limit(1);
+		return row?.v ?? false;
+	} catch (e) {
+		if (isMissingColumnError(e, 'developer_mode_enabled')) {
+			console.warn(
+				'[auth] user.developer_mode_enabled missing — run scripts/add-developer-mode-enabled.sql on the shared auth database.'
+			);
+			return false;
+		}
+		throw e;
+	}
 }
 
 export async function setDeveloperModeEnabled(userId: string, enabled: boolean): Promise<void> {

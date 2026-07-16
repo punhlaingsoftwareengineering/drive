@@ -1,9 +1,13 @@
+import { findExistingFolderChild } from '$lib/server/drive-find-folder-child';
 import { resolveParentFolderForTeam } from '$lib/server/drive-parent-team';
 import { resolveParentFolderForUser } from '$lib/server/drive-parent';
 import { assertDeveloperApiCanCreate } from '$lib/server/developer-api-limits';
 import { requireApiSession } from '$lib/server/require-api-session';
 import { assertTeamKeyHas, resolveEffectiveTeamIdParam } from '$lib/server/team-api-key-scope';
 import { isTeamMember } from '$lib/server/team-access';
+import { db } from '$lib/server/db';
+import { TeamSchema } from '$lib/server/db/schema/main-schema/team.schema';
+import { eq } from 'drizzle-orm';
 import {
 	localPathNewFolderAtRoot,
 	localPathNewSubfolder,
@@ -12,7 +16,6 @@ import {
 	tigrisKeyNewSubfolder,
 	tigrisKeyNewSubfolderTeam
 } from '$lib/server/drive-storage-layout';
-import { db } from '$lib/server/db';
 import { MainFileSchema } from '$lib/server/db/schema/main-schema/main.schema';
 import { nextSortOrderInParent } from '$lib/server/drive-sort-order';
 import { localTeamUploadDir, localUserUploadDir } from '$lib/server/local-drive-path';
@@ -64,6 +67,62 @@ export const POST: RequestHandler = async ({ request }) => {
 	const parentFolder = teamId
 		? await resolveParentFolderForTeam(userId, teamId, provider, parsed.data.parentId)
 		: await resolveParentFolderForUser(userId, provider, parsed.data.parentId);
+
+	let teamRootId: string | null = null;
+	if (teamId) {
+		const [teamRow] = await db
+			.select({ root: TeamSchema.rootFolderId })
+			.from(TeamSchema)
+			.where(eq(TeamSchema.id, teamId))
+			.limit(1);
+		teamRootId = teamRow?.root ?? null;
+	}
+
+	const resolvedParentId = parentFolder?.id ?? null;
+	const existing = teamId
+		? teamRootId
+			? await findExistingFolderChild(
+					{
+						kind: 'team',
+						teamId,
+						storageProvider: provider,
+						parentId: resolvedParentId ?? teamRootId,
+						teamRootId
+					},
+					name
+				)
+			: null
+		: await findExistingFolderChild(
+				{
+					kind: 'user',
+					ownerId: userId,
+					storageProvider: provider,
+					parentId: resolvedParentId
+				},
+				name
+			);
+
+	if (existing) {
+		if (
+			teamId &&
+			teamRootId &&
+			resolvedParentId === teamRootId &&
+			existing.parentId === null &&
+			existing.id !== teamRootId
+		) {
+			const sortOrder = await nextSortOrderInParent(teamRootId, {
+				kind: 'team',
+				teamId,
+				storageProvider: provider
+			});
+			await db
+				.update(MainFileSchema)
+				.set({ parentId: teamRootId, sortOrder })
+				.where(eq(MainFileSchema.id, existing.id));
+		}
+		return json({ ok: true, id: existing.id, name });
+	}
+
 	const id = randomUUID();
 	const teamIdVal = teamId ?? null;
 	const sortOrder = await nextSortOrderInParent(
