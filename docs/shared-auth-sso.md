@@ -23,7 +23,7 @@ Employee portal stores admin media (images, PDFs, video, audio) on team drive vi
 ## Production `.env`
 
 ```env
-ORIGIN=https://office.drive.phh.com
+ORIGIN=https://drive.phh.com
 PORTAL_ORIGIN=https://phh.com
 AUTH_COOKIE_DOMAIN=.phh.com
 BETTER_AUTH_SECRET=<same as portal>
