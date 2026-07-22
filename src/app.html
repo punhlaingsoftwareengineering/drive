@@ -1,6 +1,6 @@
 <!doctype html>
 
-<html lang="%paraglide.lang%" data-theme="light" data-font="Adwaita-sans">
+<html lang="%paraglide.lang%" data-theme="light" data-font="adwaita-sans">
 	<head>
 		<meta charset="utf-8" />
 
@@ -49,7 +49,20 @@
 					'silk'
 				];
 				try {
-					var theme = localStorage.getItem('theme');
+					function readCookie(name) {
+						var prefix = name + '=';
+						var parts = document.cookie.split(';');
+						for (var i = 0; i < parts.length; i += 1) {
+							var trimmed = parts[i].trim();
+							if (trimmed.indexOf(prefix) === 0)
+								return decodeURIComponent(trimmed.slice(prefix.length));
+						}
+						return null;
+					}
+					var theme =
+						readCookie('phh-ui-theme') ||
+						localStorage.getItem('phh-ui-theme') ||
+						localStorage.getItem('theme');
 					if (theme && themes.indexOf(theme) !== -1) {
 						document.documentElement.setAttribute('data-theme', theme);
 					}
@@ -58,9 +71,40 @@
 
 			(function () {
 				var fonts = ['adwaita-sans', 'adwaita-mono', 'roboto', 'comic-relief', 'pangolin'];
-				var fonts = ['Adwaita-sans', 'Adwaita-mono', 'Roboto', 'Comic-relief', 'Pangolin'];
+				fonts = fonts.concat(['maple-mono', 'arial', 'times-new-roman']);
+				function readCookie(name) {
+					var prefix = name + '=';
+					var parts = document.cookie.split(';');
+					for (var i = 0; i < parts.length; i += 1) {
+						var trimmed = parts[i].trim();
+						if (trimmed.indexOf(prefix) === 0)
+							return decodeURIComponent(trimmed.slice(prefix.length));
+					}
+					return null;
+				}
+				function normalizeFont(value) {
+					if (!value) return null;
+					switch (value) {
+						case 'Adwaita-sans':
+							return 'adwaita-sans';
+						case 'Adwaita-mono':
+							return 'adwaita-mono';
+						case 'Roboto':
+							return 'roboto';
+						case 'Comic-relief':
+							return 'comic-relief';
+						case 'Pangolin':
+							return 'pangolin';
+						default:
+							return String(value).toLowerCase();
+					}
+				}
 				try {
-					var font = localStorage.getItem('font');
+					var font = normalizeFont(
+						readCookie('phh-ui-font') ||
+							localStorage.getItem('phh-ui-font') ||
+							localStorage.getItem('font')
+					);
 					if (font && fonts.indexOf(font) !== -1) {
 						document.documentElement.setAttribute('data-font', font);
 					}

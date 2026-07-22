@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { appName } from '$lib/app-name';
+	import SharedAppearanceSync from '$lib/components/shared-appearance-sync.svelte';
+	import SupportFab from '$lib/components/support-fab.svelte';
 	import { locales, localizeHref } from '$lib/paraglide/runtime';
 	import './layout.css';
 	import Favicon from '$lib/asset/favicon.svg';
@@ -13,7 +15,9 @@
 	<link rel="icon" type="image/svg+xml" href={Favicon} />
 	<title>{appName()}</title>
 </svelte:head>
+<SharedAppearanceSync />
 {@render children()}
+<SupportFab />
 
 <div style="display:none" class="bg-base-100">
 	{#each locales as locale}

@@ -23,7 +23,7 @@
 	let activeSection = $state<SettingsSectionId>('appearance');
 
 	let draftTheme = $state('light');
-	let draftFont = $state('Roboto');
+	let draftFont = $state('roboto');
 	let draftFontScale = $state(1);
 	let draftLocale = $state<string>('en');
 
@@ -54,8 +54,8 @@
 		if (!browser) return;
 		const t = document.documentElement.getAttribute('data-theme') ?? 'light';
 		draftTheme = isValidTheme(t) ? t : 'light';
-		const f = document.documentElement.getAttribute('data-font') ?? 'Roboto';
-		draftFont = isValidFont(f) ? f : 'Roboto';
+		const f = document.documentElement.getAttribute('data-font') ?? 'roboto';
+		draftFont = isValidFont(f) ? f : 'roboto';
 		draftFontScale = readStoredFontScale();
 		try {
 			draftLocale = getLocale();

@@ -49,28 +49,43 @@
 	--font-comic: 'ComicRelief', sans-serif;
 	--font-pangolin: 'Pangolin', sans-serif;
 	--font-paris: 'ParisForbel', serif;
+	--font-maple: 'Maple Mono', ui-monospace, monospace;
+	--font-arial: Arial, Helvetica, sans-serif;
+	--font-times: 'Times New Roman', Times, serif;
 
 	/* default font */
 	--font-family: var(--font-roboto);
 }
 
-:root[data-font='Adwaita-sans'] {
+:root[data-font='maple-mono'] {
+	--font-family: var(--font-maple);
+}
+
+:root[data-font='adwaita-sans'] {
 	--font-family: var(--font-adwaita);
 }
 
-:root[data-font='Adwaita-mono'] {
+:root[data-font='adwaita-mono'] {
 	--font-family: var(--font-adwaita-mono);
 }
 
-:root[data-font='Roboto'] {
+:root[data-font='roboto'] {
 	--font-family: var(--font-roboto);
 }
 
-:root[data-font='Comic-relief'] {
+:root[data-font='arial'] {
+	--font-family: var(--font-arial);
+}
+
+:root[data-font='times-new-roman'] {
+	--font-family: var(--font-times);
+}
+
+:root[data-font='comic-relief'] {
 	--font-family: var(--font-comic);
 }
 
-:root[data-font='Pangolin'] {
+:root[data-font='pangolin'] {
 	--font-family: var(--font-pangolin);
 }
 

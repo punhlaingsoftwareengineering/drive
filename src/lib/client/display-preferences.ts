@@ -7,6 +7,8 @@ import { UI_FONT_OPTIONS } from '$lib/user-settings/ui-fonts';
 export const THEME_STORAGE_KEY = 'theme';
 export const FONT_STORAGE_KEY = 'font';
 export const FONT_SCALE_STORAGE_KEY = 'uiFontScale';
+export const SHARED_THEME_STORAGE_KEY = 'phh-ui-theme';
+export const SHARED_FONT_STORAGE_KEY = 'phh-ui-font';
 
 const FONT_VALUES = new Set<string>(UI_FONT_OPTIONS.map((f) => f.value));
 const THEME_SET = new Set<string>(DAISYUI_THEMES);
@@ -31,11 +33,66 @@ export function isValidFont(t: string): t is UiFontValue {
 	return FONT_VALUES.has(t);
 }
 
+function getCookieDomain(): string | null {
+	if (!browser) return null;
+	const { hostname } = window.location;
+	if (
+		hostname === 'localhost' ||
+		hostname.endsWith('.localhost') ||
+		/^\d{1,3}(\.\d{1,3}){3}$/.test(hostname)
+	) {
+		return null;
+	}
+
+	const parts = hostname.split('.').filter(Boolean);
+	if (parts.length < 2) return null;
+	return `.${parts.slice(-2).join('.')}`;
+}
+
+function readCookie(name: string): string | null {
+	if (!browser) return null;
+	const prefix = `${name}=`;
+	for (const part of document.cookie.split(';')) {
+		const trimmed = part.trim();
+		if (trimmed.startsWith(prefix)) {
+			return decodeURIComponent(trimmed.slice(prefix.length));
+		}
+	}
+	return null;
+}
+
+function writeCookie(name: string, value: string) {
+	if (!browser) return;
+	const domain = getCookieDomain();
+	const domainPart = domain ? `; domain=${domain}` : '';
+	document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=31536000; SameSite=Lax${domainPart}`;
+}
+
+function normalizeLegacyFont(value: string | null): string | null {
+	if (!value) return null;
+	switch (value) {
+		case 'Adwaita-sans':
+			return 'adwaita-sans';
+		case 'Adwaita-mono':
+			return 'adwaita-mono';
+		case 'Roboto':
+			return 'roboto';
+		case 'Comic-relief':
+			return 'comic-relief';
+		case 'Pangolin':
+			return 'pangolin';
+		default:
+			return value.toLowerCase();
+	}
+}
+
 export function applyTheme(theme: string): void {
 	if (!browser || !isValidTheme(theme)) return;
 	document.documentElement.setAttribute('data-theme', theme);
 	try {
 		localStorage.setItem(THEME_STORAGE_KEY, theme);
+		localStorage.setItem(SHARED_THEME_STORAGE_KEY, theme);
+		writeCookie(SHARED_THEME_STORAGE_KEY, theme);
 	} catch {
 		/* ignore */
 	}
@@ -46,6 +103,8 @@ export function applyFont(font: string): void {
 	document.documentElement.setAttribute('data-font', font);
 	try {
 		localStorage.setItem(FONT_STORAGE_KEY, font);
+		localStorage.setItem(SHARED_FONT_STORAGE_KEY, font);
+		writeCookie(SHARED_FONT_STORAGE_KEY, font);
 	} catch {
 		/* ignore */
 	}
@@ -70,5 +129,22 @@ export function readStoredFontScale(): number {
 		return clampScale(parseFloat(raw));
 	} catch {
 		return 1;
+	}
+}
+
+export function syncSharedAppearance(): void {
+	if (!browser) return;
+	const theme =
+		readCookie(SHARED_THEME_STORAGE_KEY) ?? localStorage.getItem(SHARED_THEME_STORAGE_KEY);
+	if (theme && isValidTheme(theme)) {
+		applyTheme(theme);
+	}
+
+	const font =
+		normalizeLegacyFont(readCookie(SHARED_FONT_STORAGE_KEY)) ??
+		normalizeLegacyFont(localStorage.getItem(SHARED_FONT_STORAGE_KEY)) ??
+		normalizeLegacyFont(localStorage.getItem(FONT_STORAGE_KEY));
+	if (font && isValidFont(font)) {
+		applyFont(font);
 	}
 }
