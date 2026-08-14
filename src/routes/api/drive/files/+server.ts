@@ -10,6 +10,7 @@ import { db } from '$lib/server/db';
 import { MainFileSchema } from '$lib/server/db/schema/main-schema/main.schema';
 import { TeamSchema } from '$lib/server/db/schema/main-schema/team.schema';
 import { isTeamMember } from '$lib/server/team-access';
+import { ensureTeamRootFolder } from '$lib/server/team-repair-root';
 import { STORAGE_PROVIDERS, type StorageProviderId } from '$lib/model/storage-provider';
 import { error, json } from '@sveltejs/kit';
 import { and, asc, eq, isNull, ne, or } from 'drizzle-orm';
@@ -47,13 +48,12 @@ export const GET: RequestHandler = async ({ request, url }) => {
 			.from(TeamSchema)
 			.where(eq(TeamSchema.id, teamId))
 			.limit(1);
-		const root = trow?.root;
-		if (!root) {
-			throw error(500, 'Team root not configured');
-		}
+		if (!trow) throw error(404, 'Team not found');
 		if (trow.sp !== storageProvider) {
 			throw error(400, 'Storage provider must match the team');
 		}
+		const rootRow = await ensureTeamRootFolder(teamId, storageProvider);
+		const root = rootRow.id;
 		parentFilter = or(
 			eq(MainFileSchema.parentId, root),
 			and(isNull(MainFileSchema.parentId), ne(MainFileSchema.id, root))

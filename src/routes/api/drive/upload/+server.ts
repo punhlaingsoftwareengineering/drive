@@ -1,6 +1,7 @@
 import { throwMappedUploadError } from '$lib/server/drive-upload-errors';
 import { assertWithinUploadLimit } from '$lib/server/drive-upload-limits';
 import { assertDeveloperApiCanCreate } from '$lib/server/developer-api-limits';
+import { resolveUploadOwnerUserId } from '$lib/server/drive-upload-owner';
 import { assertTeamKeyHas } from '$lib/server/team-api-key-scope';
 import { persistSealedUpload } from '$lib/server/drive-upload-persist';
 import { parseSimpleUploadQuery, readUploadBody } from '$lib/server/drive-upload-query';
@@ -16,6 +17,7 @@ export const POST: RequestHandler = async ({ request, url }) => {
 	const session = await requireApiSession(request);
 	assertTeamKeyHas(session, 'drive.write');
 	const userId = session.user.id;
+	const ownerUserId = await resolveUploadOwnerUserId(session, request);
 
 	const meta = await parseSimpleUploadQuery(url, userId, session);
 	const plain = await readUploadBody(request);
@@ -33,7 +35,8 @@ export const POST: RequestHandler = async ({ request, url }) => {
 			meta.mimeType,
 			{
 				teamId: meta.teamId ?? null,
-				createdByApiKeyId: session.apiKeyId ?? null
+				createdByApiKeyId: session.apiKeyId ?? null,
+				ownerUserId
 			}
 		);
 		return json({ ok: true, created: [row] });

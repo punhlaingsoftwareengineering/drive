@@ -110,6 +110,18 @@ Authentication identifies **who** you are. Authorization enforces **what** you c
 
 API keys do not bypass these rules.
 
+### Attribution for server integrations (`X-Drive-On-Behalf-Of`)
+
+Team/developer API keys authenticate as the **key creator**. Uploads from employee portal or docs should still show the **person who clicked Upload** as the file owner.
+
+When calling `POST /api/drive/upload` or `POST /api/drive/upload/chunk` with an API key, send:
+
+```http
+X-Drive-On-Behalf-Of: <shared-auth-user-id>
+```
+
+Drive sets `owner_id` to that user (must exist in the shared auth database). The key creator still authorizes the write; `created_by_api_key_id` still records which key was used. Cookie sessions ignore this header.
+
 ## Security practices
 
 - Store keys in environment variables or a secrets manager, never in source control.

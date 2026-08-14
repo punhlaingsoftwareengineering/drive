@@ -18,7 +18,7 @@ import {
 } from '$lib/server/drive-storage-layout';
 import { MainFileSchema } from '$lib/server/db/schema/main-schema/main.schema';
 import { nextSortOrderInParent } from '$lib/server/drive-sort-order';
-import { localTeamUploadDir, localUserUploadDir } from '$lib/server/local-drive-path';
+import { localTeamUploadDir, localUserUploadDir, ensureLocalDiskPathInDataRoot } from '$lib/server/local-drive-path';
 import { TigrisUtil } from '$lib/service/tigris.service.svelte';
 import type { StorageProviderId } from '$lib/model/storage-provider';
 import { error, json } from '@sveltejs/kit';
@@ -64,7 +64,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			throw error(403, 'Forbidden');
 		}
 	}
-	const parentFolder = teamId
+	let parentFolder = teamId
 		? await resolveParentFolderForTeam(userId, teamId, provider, parsed.data.parentId)
 		: await resolveParentFolderForUser(userId, provider, parsed.data.parentId);
 
@@ -137,10 +137,22 @@ export const POST: RequestHandler = async ({ request }) => {
 	const createdByApiKeyId = session.apiKeyId ?? null;
 
 	if (provider === 'local') {
+		const parentPath = parentFolder
+			? ensureLocalDiskPathInDataRoot(parentFolder.path)
+			: null;
+		if (parentFolder && parentPath && parentPath !== parentFolder.path) {
+			await db
+				.update(MainFileSchema)
+				.set({ path: parentPath })
+				.where(eq(MainFileSchema.id, parentFolder.id));
+			parentFolder = { ...parentFolder, path: parentPath };
+		}
 		const userDir = teamId ? localTeamUploadDir(teamId) : localUserUploadDir(userId);
-		const diskPath = parentFolder
-			? localPathNewSubfolder(parentFolder.path, id)
-			: localPathNewFolderAtRoot(userDir, id);
+		const diskPath = ensureLocalDiskPathInDataRoot(
+			parentFolder
+				? localPathNewSubfolder(parentFolder.path, id)
+				: localPathNewFolderAtRoot(userDir, id)
+		);
 		await mkdir(diskPath, { recursive: true });
 
 		await db.insert(MainFileSchema).values({

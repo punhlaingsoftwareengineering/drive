@@ -17,7 +17,7 @@ import { sealFileBuffer, sealFileStream } from '$lib/server/drive-seal';
 import { nextSortOrderInParent } from '$lib/server/drive-sort-order';
 import { db } from '$lib/server/db';
 import { MainFileSchema } from '$lib/server/db/schema/main-schema/main.schema';
-import { localTeamUploadDir, localUserUploadDir } from '$lib/server/local-drive-path';
+import { localTeamUploadDir, localUserUploadDir, ensureLocalDiskPathInDataRoot } from '$lib/server/local-drive-path';
 import { TigrisUtil } from '$lib/service/tigris.service.svelte';
 import type { StorageProviderId } from '$lib/model/storage-provider';
 import { createReadStream } from 'node:fs';
@@ -25,6 +25,7 @@ import { mkdir, readFile, stat, unlink, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { tmpdir } from 'node:os';
+import { eq } from 'drizzle-orm';
 
 export function safeUploadFileName(name: string): string {
 	const normalized = name
@@ -47,6 +48,23 @@ type PersistContext = {
 	mimeType: string;
 	teamId: string | null;
 };
+
+/** Remap legacy Windows/Documents parent paths onto LOCAL_DRIVE_DATA_DIR and persist. */
+async function healLocalParentFolderPath(
+	parentFolder: { id: string; path: string } | null | undefined
+): Promise<{ id: string; path: string } | null | undefined> {
+	if (!parentFolder) return parentFolder;
+	const healed = ensureLocalDiskPathInDataRoot(parentFolder.path);
+	if (healed === parentFolder.path) return parentFolder;
+	await db
+		.update(MainFileSchema)
+		.set({ path: healed })
+		.where(eq(MainFileSchema.id, parentFolder.id));
+	console.warn(
+		`[drive] remapped legacy folder path ${parentFolder.id}: ${parentFolder.path} → ${healed}`
+	);
+	return { ...parentFolder, path: healed };
+}
 
 async function resolvePersistContext(ctx: PersistContext) {
 	const name = safeUploadFileName(ctx.originalFileName);
@@ -79,13 +97,14 @@ export async function persistSealedUpload(
 	plain: Buffer,
 	originalFileName: string,
 	mimeType: string,
-	opts?: { teamId?: string | null; createdByApiKeyId?: string | null }
+	opts?: { teamId?: string | null; createdByApiKeyId?: string | null; ownerUserId?: string | null }
 ): Promise<{ id: string; name: string }> {
 	assertWithinUploadLimit(plain.length);
 
 	const teamId = opts?.teamId ?? null;
 	const createdByApiKeyId = opts?.createdByApiKeyId ?? null;
-	const { name, mime, parentFolder } = await resolvePersistContext({
+	const ownerId = opts?.ownerUserId?.trim() || userId;
+	const resolved = await resolvePersistContext({
 		userId,
 		provider,
 		parentIdRaw,
@@ -93,6 +112,9 @@ export async function persistSealedUpload(
 		mimeType,
 		teamId
 	});
+	const name = resolved.name;
+	const mime = resolved.mime;
+	let parentFolder = resolved.parentFolder;
 
 	const sealed = sealFileBuffer(plain, { mime });
 	const id = randomUUID();
@@ -105,7 +127,7 @@ export async function persistSealedUpload(
 
 	const baseInsert = {
 		id,
-		ownerId: userId,
+		ownerId,
 		teamId,
 		parentId: parentFolder?.id ?? null,
 		itemType: 'file' as const,
@@ -123,12 +145,16 @@ export async function persistSealedUpload(
 	};
 
 	if (provider === 'local') {
+		parentFolder = (await healLocalParentFolderPath(parentFolder)) ?? null;
 		const userDir = teamId ? localTeamUploadDir(teamId) : localUserUploadDir(userId);
 		await mkdir(userDir, { recursive: true });
-		const diskPath = parentFolder
-			? localPathNewFileInsideFolder(parentFolder.path, id, name)
-			: localPathNewFileAtRoot(userDir, id, name);
-		await mkdir(parentFolder ? parentFolder.path : userDir, { recursive: true });
+		const diskPath = ensureLocalDiskPathInDataRoot(
+			parentFolder
+				? localPathNewFileInsideFolder(parentFolder.path, id, name)
+				: localPathNewFileAtRoot(userDir, id, name)
+		);
+		const parentDir = parentFolder ? parentFolder.path : userDir;
+		await mkdir(parentDir, { recursive: true });
 		await writeFile(diskPath, sealed.buffer);
 
 		await db.insert(MainFileSchema).values({
@@ -164,7 +190,7 @@ export async function persistSealedUploadFromPath(
 	sourcePath: string,
 	originalFileName: string,
 	mimeType: string,
-	opts?: { teamId?: string | null; createdByApiKeyId?: string | null }
+	opts?: { teamId?: string | null; createdByApiKeyId?: string | null; ownerUserId?: string | null }
 ): Promise<{ id: string; name: string }> {
 	const fileStat = await stat(sourcePath);
 	const originalSize = typeof fileStat.size === 'bigint' ? Number(fileStat.size) : fileStat.size;
@@ -172,7 +198,8 @@ export async function persistSealedUploadFromPath(
 
 	const teamId = opts?.teamId ?? null;
 	const createdByApiKeyId = opts?.createdByApiKeyId ?? null;
-	const { name, mime, parentFolder } = await resolvePersistContext({
+	const ownerId = opts?.ownerUserId?.trim() || userId;
+	const resolved = await resolvePersistContext({
 		userId,
 		provider,
 		parentIdRaw,
@@ -180,6 +207,9 @@ export async function persistSealedUploadFromPath(
 		mimeType,
 		teamId
 	});
+	const name = resolved.name;
+	const mime = resolved.mime;
+	let parentFolder = resolved.parentFolder;
 
 	const id = randomUUID();
 
@@ -205,7 +235,7 @@ export async function persistSealedUploadFromPath(
 
 	const baseInsert = {
 		id,
-		ownerId: userId,
+		ownerId,
 		teamId,
 		parentId: parentFolder?.id ?? null,
 		itemType: 'file' as const,
@@ -223,12 +253,16 @@ export async function persistSealedUploadFromPath(
 	};
 
 	if (provider === 'local') {
+		parentFolder = (await healLocalParentFolderPath(parentFolder)) ?? null;
 		const userDir = teamId ? localTeamUploadDir(teamId) : localUserUploadDir(userId);
 		await mkdir(userDir, { recursive: true });
-		const diskPath = parentFolder
-			? localPathNewFileInsideFolder(parentFolder.path, id, name)
-			: localPathNewFileAtRoot(userDir, id, name);
-		await mkdir(parentFolder ? parentFolder.path : userDir, { recursive: true });
+		const diskPath = ensureLocalDiskPathInDataRoot(
+			parentFolder
+				? localPathNewFileInsideFolder(parentFolder.path, id, name)
+				: localPathNewFileAtRoot(userDir, id, name)
+		);
+		const parentDir = parentFolder ? parentFolder.path : userDir;
+		await mkdir(parentDir, { recursive: true });
 
 		const sealed = await sealFileStream(sourcePath, diskPath, { mime, originalSize });
 		baseInsert.isCompressed = sealed.isCompressed;

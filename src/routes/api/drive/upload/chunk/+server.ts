@@ -7,6 +7,7 @@ import {
 import { throwMappedUploadError } from '$lib/server/drive-upload-errors';
 import { assertWithinUploadLimit } from '$lib/server/drive-upload-limits';
 import { assertDeveloperApiCanCreate } from '$lib/server/developer-api-limits';
+import { resolveUploadOwnerUserId } from '$lib/server/drive-upload-owner';
 import { assertTeamKeyHas } from '$lib/server/team-api-key-scope';
 import { persistSealedUploadFromPath } from '$lib/server/drive-upload-persist';
 import { parseChunkUploadQuery, readUploadBody } from '$lib/server/drive-upload-query';
@@ -18,6 +19,7 @@ export const POST: RequestHandler = async ({ request, url }) => {
 	const session = await requireApiSession(request);
 	assertTeamKeyHas(session, 'drive.write');
 	const userId = session.user.id;
+	const ownerUserId = await resolveUploadOwnerUserId(session, request);
 
 	const chunkIndex = Number(url.searchParams.get('chunkIndex'));
 	const { chunkCount, uploadId, init } = await parseChunkUploadQuery(url, userId, chunkIndex, session);
@@ -51,7 +53,8 @@ export const POST: RequestHandler = async ({ request, url }) => {
 			meta.mimeType,
 			{
 				teamId,
-				createdByApiKeyId: session.apiKeyId ?? null
+				createdByApiKeyId: session.apiKeyId ?? null,
+				ownerUserId
 			}
 		);
 

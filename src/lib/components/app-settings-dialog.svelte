@@ -1,13 +1,14 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
 	import {
+		APP_FONT_SIZES,
 		applyFont,
-		applyFontScale,
+		applyFontSize,
 		applyTheme,
-		FONT_SCALE_PRESETS,
 		isValidFont,
 		isValidTheme,
-		readStoredFontScale
+		readStoredFontSize,
+		type AppFontSize
 	} from '$lib/client/display-preferences';
 	import { getLocale, locales, setLocale } from '$lib/paraglide/runtime';
 	import type { SettingsSectionId } from '$lib/user-settings/settings-sections';
@@ -24,7 +25,7 @@
 
 	let draftTheme = $state('light');
 	let draftFont = $state('roboto');
-	let draftFontScale = $state(1);
+	let draftFontSize = $state<AppFontSize>('normal');
 	let draftLocale = $state<string>('en');
 
 	const localeLabels: Record<string, string> = {
@@ -56,7 +57,7 @@
 		draftTheme = isValidTheme(t) ? t : 'light';
 		const f = document.documentElement.getAttribute('data-font') ?? 'roboto';
 		draftFont = isValidFont(f) ? f : 'roboto';
-		draftFontScale = readStoredFontScale();
+		draftFontSize = readStoredFontSize();
 		try {
 			draftLocale = getLocale();
 		} catch {
@@ -179,15 +180,11 @@
 							</span>
 							<select
 								class="d-select-bordered d-select w-full"
-								value={String(draftFontScale)}
-								onchange={(e) => {
-									const v = parseFloat((e.currentTarget as HTMLSelectElement).value);
-									draftFontScale = v;
-									applyFontScale(v);
-								}}
+								bind:value={draftFontSize}
+								onchange={() => applyFontSize(draftFontSize)}
 							>
-								{#each FONT_SCALE_PRESETS as p (p.value)}
-									<option value={String(p.value)}>{p.label}</option>
+								{#each APP_FONT_SIZES as p (p.value)}
+									<option value={p.value}>{p.label}</option>
 								{/each}
 							</select>
 							<span class="d-label-text-alt text-base-content/60">

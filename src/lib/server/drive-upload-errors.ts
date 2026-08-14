@@ -27,6 +27,11 @@ export function throwMappedUploadError(e: unknown, ctx: UploadErrorContext): nev
 		throw error(500, msg);
 	}
 
+	if (msg.includes('LOCAL_DRIVE_DATA_DIR') || msg.includes('Refusing to')) {
+		console.error(`[${ctx.route}] local drive config`, ctx, e);
+		throw error(503, msg);
+	}
+
 	if (hasCode(e, 'EACCES') || hasCode(e, 'EROFS')) {
 		console.error(`[${ctx.route}] storage not writable`, ctx, e);
 		throw error(

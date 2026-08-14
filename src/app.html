@@ -112,13 +112,42 @@
 			})();
 
 			(function () {
+				var sizeScales = {
+					'extra-small': '0.8125',
+					smaller: '0.875',
+					normal: '1',
+					larger: '1.125',
+					'extra-large': '1.25'
+				};
+				function readCookie(name) {
+					var prefix = name + '=';
+					var parts = document.cookie.split(';');
+					for (var i = 0; i < parts.length; i += 1) {
+						var trimmed = parts[i].trim();
+						if (trimmed.indexOf(prefix) === 0)
+							return decodeURIComponent(trimmed.slice(prefix.length));
+					}
+					return null;
+				}
 				try {
-					var v = localStorage.getItem('uiFontScale');
-					if (v) {
-						var n = parseFloat(v);
-						if (!isNaN(n) && n >= 0.75 && n <= 1.5) {
-							document.documentElement.style.setProperty('--app-font-scale', String(n));
+					var fontSize =
+						readCookie('phh-ui-font-size') || localStorage.getItem('phh-ui-font-size');
+					if (!fontSize) {
+						var v = localStorage.getItem('uiFontScale');
+						if (v) {
+							var n = parseFloat(v);
+							if (!isNaN(n)) {
+								if (n <= 0.84) fontSize = 'extra-small';
+								else if (n <= 0.94) fontSize = 'smaller';
+								else if (n <= 1.06) fontSize = 'normal';
+								else if (n <= 1.19) fontSize = 'larger';
+								else fontSize = 'extra-large';
+							}
 						}
+					}
+					if (fontSize && sizeScales[fontSize]) {
+						document.documentElement.dataset.appFontSize = fontSize;
+						document.documentElement.style.setProperty('--app-font-scale', sizeScales[fontSize]);
 					}
 				} catch (e) {}
 			})();

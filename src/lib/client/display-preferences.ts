@@ -9,20 +9,45 @@ export const FONT_STORAGE_KEY = 'font';
 export const FONT_SCALE_STORAGE_KEY = 'uiFontScale';
 export const SHARED_THEME_STORAGE_KEY = 'phh-ui-theme';
 export const SHARED_FONT_STORAGE_KEY = 'phh-ui-font';
+export const SHARED_FONT_SIZE_STORAGE_KEY = 'phh-ui-font-size';
 
 const FONT_VALUES = new Set<string>(UI_FONT_OPTIONS.map((f) => f.value));
 const THEME_SET = new Set<string>(DAISYUI_THEMES);
 
-export const FONT_SCALE_PRESETS = [
-	{ value: 0.875, label: 'Smaller' },
-	{ value: 1, label: 'Default' },
-	{ value: 1.125, label: 'Larger' },
-	{ value: 1.25, label: 'Largest' }
+export const APP_FONT_SIZES = [
+	{ value: 'extra-small', label: 'Extra small', scale: 0.8125 },
+	{ value: 'smaller', label: 'Smaller', scale: 0.875 },
+	{ value: 'normal', label: 'Normal', scale: 1 },
+	{ value: 'larger', label: 'Larger', scale: 1.125 },
+	{ value: 'extra-large', label: 'Extra large', scale: 1.25 }
 ] as const;
+
+export type AppFontSize = (typeof APP_FONT_SIZES)[number]['value'];
+
+const VALID_FONT_SIZES = new Set<string>(APP_FONT_SIZES.map((s) => s.value));
+const FONT_SIZE_SCALE = Object.fromEntries(
+	APP_FONT_SIZES.map((s) => [s.value, s.scale])
+) as Record<AppFontSize, number>;
+
+/** @deprecated Prefer APP_FONT_SIZES / named sizes. Kept for older callers. */
+export const FONT_SCALE_PRESETS = APP_FONT_SIZES.map((s) => ({
+	value: s.scale,
+	label: s.label,
+	size: s.value
+})) as ReadonlyArray<{ value: number; label: string; size: AppFontSize }>;
 
 function clampScale(n: number): number {
 	if (Number.isNaN(n)) return 1;
 	return Math.min(1.5, Math.max(0.75, n));
+}
+
+function scaleToFontSize(n: number): AppFontSize {
+	const scale = clampScale(n);
+	if (scale <= 0.84) return 'extra-small';
+	if (scale <= 0.94) return 'smaller';
+	if (scale <= 1.06) return 'normal';
+	if (scale <= 1.19) return 'larger';
+	return 'extra-large';
 }
 
 export function isValidTheme(t: string): t is DaisyTheme {
@@ -31,6 +56,10 @@ export function isValidTheme(t: string): t is DaisyTheme {
 
 export function isValidFont(t: string): t is UiFontValue {
 	return FONT_VALUES.has(t);
+}
+
+export function isValidFontSize(t: string): t is AppFontSize {
+	return VALID_FONT_SIZES.has(t);
 }
 
 function getCookieDomain(): string | null {
@@ -110,26 +139,42 @@ export function applyFont(font: string): void {
 	}
 }
 
-export function applyFontScale(scale: number): void {
-	if (!browser) return;
-	const s = clampScale(scale);
-	document.documentElement.style.setProperty('--app-font-scale', String(s));
+export function applyFontSize(size: AppFontSize): void {
+	if (!browser || !isValidFontSize(size)) return;
+	const scale = FONT_SIZE_SCALE[size];
+	document.documentElement.dataset.appFontSize = size;
+	document.documentElement.style.setProperty('--app-font-scale', String(scale));
 	try {
-		localStorage.setItem(FONT_SCALE_STORAGE_KEY, String(s));
+		localStorage.setItem(SHARED_FONT_SIZE_STORAGE_KEY, size);
+		localStorage.setItem(FONT_SCALE_STORAGE_KEY, String(scale));
+		writeCookie(SHARED_FONT_SIZE_STORAGE_KEY, size);
 	} catch {
 		/* ignore */
 	}
 }
 
-export function readStoredFontScale(): number {
-	if (!browser) return 1;
+/** @deprecated Prefer applyFontSize with named sizes. */
+export function applyFontScale(scale: number): void {
+	applyFontSize(scaleToFontSize(scale));
+}
+
+export function readStoredFontSize(): AppFontSize {
+	if (!browser) return 'normal';
 	try {
+		const named =
+			readCookie(SHARED_FONT_SIZE_STORAGE_KEY) ?? localStorage.getItem(SHARED_FONT_SIZE_STORAGE_KEY);
+		if (named && isValidFontSize(named)) return named;
+
 		const raw = localStorage.getItem(FONT_SCALE_STORAGE_KEY);
-		if (!raw) return 1;
-		return clampScale(parseFloat(raw));
+		if (!raw) return 'normal';
+		return scaleToFontSize(parseFloat(raw));
 	} catch {
-		return 1;
+		return 'normal';
 	}
+}
+
+export function readStoredFontScale(): number {
+	return FONT_SIZE_SCALE[readStoredFontSize()];
 }
 
 export function syncSharedAppearance(): void {
@@ -147,4 +192,6 @@ export function syncSharedAppearance(): void {
 	if (font && isValidFont(font)) {
 		applyFont(font);
 	}
+
+	applyFontSize(readStoredFontSize());
 }

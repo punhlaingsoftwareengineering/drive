@@ -3,6 +3,7 @@ import { db } from '$lib/server/db';
 import { MainFileSchema } from '$lib/server/db/schema/main-schema/main.schema';
 import { TeamSchema } from '$lib/server/db/schema/main-schema/team.schema';
 import { isTeamMember } from '$lib/server/team-access';
+import { ensureTeamRootFolder } from '$lib/server/team-repair-root';
 import { error } from '@sveltejs/kit';
 import { and, eq, isNull } from 'drizzle-orm';
 import { z } from 'zod';
@@ -17,30 +18,31 @@ async function loadTeamRootFolder(
 		.where(eq(TeamSchema.id, teamId))
 		.limit(1);
 
-	if (!team?.root) throw error(500, 'Team root not configured');
+	if (!team) throw error(404, 'Team not found');
 	if (team.sp !== storageProvider) {
 		throw error(400, 'Storage provider must match the team');
 	}
 
-	const [row] = await db
-		.select({ id: MainFileSchema.id, path: MainFileSchema.path })
-		.from(MainFileSchema)
-		.where(
-			and(
-				eq(MainFileSchema.id, team.root),
-				eq(MainFileSchema.teamId, teamId),
-				eq(MainFileSchema.storageProvider, storageProvider),
-				eq(MainFileSchema.itemType, 'folder'),
-				isNull(MainFileSchema.trashedAt)
+	if (team.root) {
+		const [row] = await db
+			.select({ id: MainFileSchema.id, path: MainFileSchema.path })
+			.from(MainFileSchema)
+			.where(
+				and(
+					eq(MainFileSchema.id, team.root),
+					eq(MainFileSchema.teamId, teamId),
+					eq(MainFileSchema.storageProvider, storageProvider),
+					eq(MainFileSchema.itemType, 'folder'),
+					isNull(MainFileSchema.trashedAt)
+				)
 			)
-		)
-		.limit(1);
+			.limit(1);
 
-	if (!row) {
-		throw error(400, 'Team root folder not found. Ask an admin to repair the team drive.');
+		if (row) return row;
 	}
 
-	return row;
+	// Missing / trashed / mismatched root row — recreate so portal + API keep working.
+	return ensureTeamRootFolder(teamId, storageProvider);
 }
 
 export async function resolveParentFolderForTeam(

@@ -1,10 +1,17 @@
 <script lang="ts">
 	import { Type } from '@lucide/svelte';
-	import { applyFont } from '$lib/client/display-preferences';
+	import {
+		APP_FONT_SIZES,
+		applyFont,
+		applyFontSize,
+		readStoredFontSize,
+		type AppFontSize
+	} from '$lib/client/display-preferences';
 	import { UI_FONT_OPTIONS } from '$lib/user-settings/ui-fonts';
 
 	let dialog = $state<HTMLDialogElement | null>(null);
 	let font = $state('roboto');
+	let fontSize = $state<AppFontSize>('normal');
 
 	const fontStacks: Record<string, string> = {
 		'maple-mono': "'Maple Mono', ui-monospace, monospace",
@@ -19,11 +26,17 @@
 
 	export function open() {
 		font = document.documentElement.getAttribute('data-font') ?? 'roboto';
+		fontSize = readStoredFontSize();
 		dialog?.showModal();
 	}
 
 	function close() {
 		dialog?.close();
+	}
+
+	function setFontSize(value: AppFontSize) {
+		fontSize = value;
+		applyFontSize(value);
 	}
 
 	function setFont(value: string) {
@@ -40,24 +53,44 @@
 			Font
 		</h3>
 		<p class="mt-1 text-sm text-base-content/70">
-			Choose a shared font for Drive, Docs, and Employee Portal on this browser.
+			Choose text size and font for Drive, Docs, and Employee Portal on this browser.
 		</p>
 
-		<div class="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
-			{#each UI_FONT_OPTIONS as option (option.value)}
-				<button
-					type="button"
-					class="font-picker-option"
-					class:font-picker-option--active={font === option.value}
-					style:font-family={fontStacks[option.value]}
-					onclick={() => setFont(option.value)}
-				>
-					<span class="font-picker-option__label">{option.label}</span>
-					<span class="font-picker-option__sample"
-						>The quick brown fox jumps over the lazy dog.</span
+		<div class="mt-4">
+			<p class="mb-2 text-sm font-medium">Text size</p>
+			<div class="flex flex-wrap gap-2">
+				{#each APP_FONT_SIZES as option (option.value)}
+					<button
+						type="button"
+						class="d-btn d-btn-sm"
+						class:d-btn-primary={fontSize === option.value}
+						class:d-btn-outline={fontSize !== option.value}
+						onclick={() => setFontSize(option.value)}
 					>
-				</button>
-			{/each}
+						{option.label}
+					</button>
+				{/each}
+			</div>
+		</div>
+
+		<div class="mt-5">
+			<p class="mb-2 text-sm font-medium">Font</p>
+			<div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+				{#each UI_FONT_OPTIONS as option (option.value)}
+					<button
+						type="button"
+						class="font-picker-option"
+						class:font-picker-option--active={font === option.value}
+						style:font-family={fontStacks[option.value]}
+						onclick={() => setFont(option.value)}
+					>
+						<span class="font-picker-option__label">{option.label}</span>
+						<span class="font-picker-option__sample"
+							>The quick brown fox jumps over the lazy dog.</span
+						>
+					</button>
+				{/each}
+			</div>
 		</div>
 
 		<div class="d-modal-action">

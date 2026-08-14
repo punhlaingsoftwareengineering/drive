@@ -2,12 +2,14 @@ import { sequence } from '@sveltejs/kit/hooks';
 import { building, dev } from '$app/environment';
 import { env } from '$env/dynamic/private';
 import { auth } from '$lib/server/auth';
+import { localDriveDataRoot, LocalDriveConfigError } from '$lib/server/local-drive-path';
 import { isAuthPath } from 'better-auth/svelte-kit';
 import type { Handle, HandleServerError } from '@sveltejs/kit';
 import { getTextDirection } from '$lib/paraglide/runtime';
 import { paraglideMiddleware } from '$lib/paraglide/server';
 
 let warnedMissingOrigin = false;
+let localDriveConfigChecked = false;
 
 /** Logs once if ORIGIN is unset in production (breaks Better Auth baseURL + SvelteKit form POST CSRF checks). */
 const handleProductionConfig: Handle = ({ event, resolve }) => {
@@ -19,6 +21,21 @@ const handleProductionConfig: Handle = ({ event, resolve }) => {
 				'[config] ORIGIN is empty. Set it to your public URL (e.g. fly secrets set ORIGIN=https://your-app.fly.dev). ' +
 					'Otherwise logins can fail with "Cross-site POST form submissions are forbidden".'
 			);
+		}
+	}
+	return resolve(event);
+};
+
+/** Fail loud if local storage would write to this developer machine while using shared DB/ORIGIN. */
+const handleLocalDriveConfig: Handle = ({ event, resolve }) => {
+	if (!building && !localDriveConfigChecked) {
+		localDriveConfigChecked = true;
+		try {
+			const root = localDriveDataRoot();
+			console.info(`[config] LOCAL_DRIVE_DATA_DIR → ${root}`);
+		} catch (e) {
+			const msg = e instanceof LocalDriveConfigError ? e.message : String(e);
+			console.error(`[config] local drive storage blocked: ${msg}`);
 		}
 	}
 	return resolve(event);
@@ -92,6 +109,7 @@ const handleBetterAuth: Handle = async ({ event, resolve }) => {
 
 export const handle: Handle = sequence(
 	handleProductionConfig,
+	handleLocalDriveConfig,
 	handleFavicon,
 	handleParaglide,
 	handleBetterAuth

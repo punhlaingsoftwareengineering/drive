@@ -110,7 +110,7 @@ function parseOptionalBooleanEnv(value: string | undefined): boolean | undefined
 export function getAuthSessionOptions() {
 	const expiresIn = parseDurationSeconds(envString('AUTH_SESSION_EXPIRES_IN'), '7d');
 	const updateAge = parseDurationSeconds(envString('AUTH_SESSION_UPDATE_AGE'), '30m');
-	const cookieCacheEnabled = parseBooleanEnv(envString('AUTH_SESSION_COOKIE_CACHE_ENABLED'), true);
+	const cookieCacheEnabled = parseBooleanEnv(envString('AUTH_SESSION_COOKIE_CACHE_ENABLED'), false);
 	const cookieCacheMaxAge = parseDurationSeconds(
 		envString('AUTH_SESSION_COOKIE_CACHE_MAX_AGE'),
 		'30m'
